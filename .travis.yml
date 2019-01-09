@@ -1,0 +1,19 @@
+sudo: require
+language: generic
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - cmake
+      - gfortran
+
+script:
+  - cmake -H. -Bbuild && cmake --build build
+  - ./bin/main
+  
+branches:
+  only:
+   - master
+
