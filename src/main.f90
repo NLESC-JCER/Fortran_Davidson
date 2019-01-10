@@ -1,31 +1,20 @@
 program main
-  use numeric_kinds, only: sp, dp
+  use numeric_kinds, only: dp
   
   implicit none
+  integer :: i, j, info
+  real(dp) :: matrix(3, 3) = reshape([1, 2, 3, 2, 4, 5, 3, 5, 6], [3, 3])
+  real(dp), dimension(3) :: eigenvalues_re, eigenvalues_im
+  real(dp), dimension(3, 3) :: eigenvectors, vl
+  real(dp), dimension(3 * 5) :: work
+  
+  call DGEEV("N", "V", 3, matrix, 3, eigenvalues_re, eigenvalues_im, vl, 1, &
+  eigenvectors, 3, work, 5 * 3, info)
 
-  ! real(dp) :: matrix(4, 4)=0_dp
-  ! real(dp) :: diag(4)
-  ! integer :: i
-  ! integer :: error !error flag
-  ! character(len=*), parameter :: path_file = "tests/test_files/hdf5_test.h5"
-  ! character(len=*), parameter :: dataset1 = "array"
-  ! character(len=*), parameter :: dataset2 = "group0/vector"
-  ! real(dp), dimension(4, 4) :: buffer1
-  ! real(dp), dimension(10) :: buffer2
-  ! real(dp), dimension(10) :: random_values
+  print *, "info: ", info
+  print *, "eigenvalues: ",  eigenvalues_re
+  print *, "eigenvectors: ", eigenvectors(1, :)
 
-
-  ! ! generate a diagonal matrix
-  ! forall(i = 1: 4) matrix(i, i) = i ** 2
-  ! print *, "diagonal: ", diagonal(matrix)
-  ! print *, "trace: ", trace(matrix)
-  ! print *, "rank: ", rank(matrix)
-
-  ! ! read data from a hdf5 file
-  ! call retrieve_data_in_hdf5(path_file, dataset1, buffer1)
-  ! call retrieve_data_in_hdf5(path_file, dataset2, buffer2)
-  ! print *, sum(buffer1)
-  ! print *, dot_product(buffer2, buffer2)
-
+  print *, "square: ", sqrt(sum(eigenvalues_re ** 2))
   
 end program main
