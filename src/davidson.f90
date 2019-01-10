@@ -53,6 +53,7 @@ contains
 
     ! Basis of subspace of approximants
     real(dp), dimension(lowest):: guess_eigenvalues
+    real(dp), dimension(size(mtx, 1)) :: correction
     real(dp), dimension(:, :), allocatable :: projected, V
 
     ! Check optional arguments
@@ -89,7 +90,9 @@ contains
     end if
     
     ! 5. Calculate the correction vector
-    ! correction = compute_correction(mtx, V, eigenvalues, eigenvectors, method)
+    correction = compute_correction(mtx, V, eigenvalues, eigenvectors, method)
+
+    ! 6
     
     ! Update guess
     guess_eigenvalues = eigenvalues(:lowest)
