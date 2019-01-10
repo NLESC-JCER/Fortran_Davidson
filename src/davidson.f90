@@ -12,8 +12,20 @@ module davidson
   !> \public
   public :: eigensolver
   
+  interface
+     module function compute_correction(mtx, V, eigenvalues, eigenvectors, method) &
+          result(correction)
+       real(dp), dimension(:), intent(in) :: eigenvalues
+       real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
+       character(len=10), optional :: method
+       real(dp), dimension(size(mtx, 1)) :: correction
+       
+     end function compute_correction
+     
+  end interface
+  
 contains
-
+  
   subroutine eigensolver(mtx, eigenvalues, eigenvectors, lowest, method, max_iters, &
     tolerance)
     !> \param mtx: Matrix to diagonalize
@@ -77,7 +89,7 @@ contains
     end if
     
     ! 5. Calculate the correction vector
-    ! correction = compute_correction(mtx, V, eigenvalues, eigenvectors)
+    ! correction = compute_correction(mtx, V, eigenvalues, eigenvectors, method)
     
     ! Update guess
     guess_eigenvalues = eigenvalues(:lowest)
@@ -153,3 +165,38 @@ contains
   
   
 end module davidson
+
+
+submodule (davidson) correction_methods
+  !> submodule containing the implementations of different kind
+  !> of correction vector for the Davidson's diagonalization
+
+  implicit none
+  
+contains
+
+  module function compute_correction(mtx, V, eigenvalues, eigenvectors, method) &
+       result(correction)
+    real(dp), dimension(:), intent(in) :: eigenvalues
+    real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
+    character(len=10), optional :: method
+    real(dp), dimension(size(mtx, 1)) :: correction
+    
+    select case (method)
+    case ("DPR")
+       correction = compute_DPR(mtx, V, eigenvalues, eigenvectors)
+    case default
+       correction = compute_DPR(mtx, V, eigenvalues, eigenvectors)
+    end select
+    
+  end function compute_correction
+
+  function compute_DPR(mtx, V, eigenvalues, eigenvectors) result(correction)
+    real(dp), dimension(:), intent(in) :: eigenvalues
+    real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
+    real(dp), dimension(size(mtx, 1)) :: correction
+
+  end function compute_DPR
+  
+     
+end submodule correction_methods
