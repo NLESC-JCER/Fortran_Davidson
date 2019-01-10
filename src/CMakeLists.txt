@@ -6,4 +6,10 @@ add_executable(main ${SOURCES})
 
 # linking
 set( CMAKE_VERBOSE_MAKEFILE on )
+
+target_compile_options(main
+  PRIVATE
+    "-std=f2008"
+  )
+
 target_link_libraries(main ${LINEAR_ALGEBRA})
