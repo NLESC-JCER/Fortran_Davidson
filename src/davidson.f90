@@ -2,19 +2,20 @@
 !> \author Felipe Zapata
 module davidson
 
-
-  
   use numeric_kinds, only: dp
+  use sort, only: argsort
   ! use F90_LAPACK, only: dgeev
   implicit none
 
   !> \private
-  private :: eye
+  private :: eye, lapack_eigensolver
+  !> \public
   public :: eigensolver
   
 contains
 
-  subroutine eigensolver(mtx, eigenvalues, eigenvectors, lowest, method, max_iters)
+  subroutine eigensolver(mtx, eigenvalues, eigenvectors, lowest, method, max_iters, &
+    tolerance)
     !> \param mtx: Matrix to diagonalize
     !> \param lowest: Number of lowest eigenvalues/eigenvectors to compute
     !> \param method: Method to compute the correction vector. Available
@@ -28,13 +29,15 @@ contains
     integer, intent(in) :: lowest
     integer, optional :: max_iters
     real(dp), dimension(:, :), intent(in) :: mtx
-    real(dp), dimension(size(mtx, 1)), intent(out) :: eigenvalues
-    real(dp), dimension(size(mtx, 1), lowest), intent(out) :: eigenvectors
+    real(dp), dimension(:), intent(out) :: eigenvalues
+    real(dp), dimension(:, :), intent(out) :: eigenvectors
+    real(dp), optional :: tolerance
     character(len=10), optional :: method
     
     !local variables
     integer :: k, m
     integer, dimension(2) :: sh
+    real(dp) :: residue
 
     ! Basis of subspace of approximants
     real(dp), dimension(lowest):: guess_eigenvalues
@@ -43,6 +46,7 @@ contains
     ! Check optional arguments
     if (.not. present(max_iters)) max_iters=1000
     if (.not. present(method)) method="DPR"
+    if (.not. present(tolerance)) tolerance=1e-8
         
     ! Initial subpsace
     k = lowest * 2
@@ -61,33 +65,82 @@ contains
     ! 2. Generate subpace matrix problem
     projected = matmul(transpose(V), matmul(mtx, V))
 
-    ! 3. compute the eigenvalues and eigenvectors of the matrix
-    ! call lapack_eigensolver(eigenvalues, eigenvectors)
+    ! 3. compute the `lowest` eigenvalues and their corresponding eigenvectors
+    ! of the project matrix using lapack
+    call lapack_eigensolver(projected, eigenvalues, eigenvectors)
     
     ! 4. Check for convergence
-
-    ! 5. Calculate the correction vector
+    residue = sqrt(sum(guess_eigenvalues - eigenvalues(:lowest) ** 2))
     
+    if (residue < tolerance) then
+       print *, "done!"
+    end if
+    
+    ! 5. Calculate the correction vector
+    ! correction = compute_correction(mtx, V, eigenvalues, eigenvectors)
+    
+    ! Update guess
+    guess_eigenvalues = eigenvalues(:lowest)
     ! end do outer_loop
 
+    ! Free memory
     deallocate(V)
+    
+    ! Select the lowest eigenvalues and their corresponding eigenvectos
+    eigenvalues = eigenvalues(:lowest)
+    eigenvectors = eigenvectors(:lowest, :)
     
     return
 
   end subroutine eigensolver
 
-  pure function eye(n, m)
-    !> Create a diagonal matrix
-    !> \param n: number of rows
-    !> \param m: number of colums
+  subroutine lapack_eigensolver(mtx, eigenvalues, eigenvectors)
+    !> Call the DGEEV subroutine lapack to compute ALL the eigenvalues
+    !> and corresponding eigenvectors of mtx
+    !> \param mtx: Matrix to diaogonalize
+    !> \param eigenvalues
+    !> \param eigenvectors
+    ! input/output
+    real(dp), dimension(:, :), intent(in) :: mtx
+    real(dp), dimension(:), intent(inout) :: eigenvalues
+    real(dp), dimension(:, :), intent(inout) :: eigenvectors
+    real(dp), dimension(5 * size(eigenvalues)) :: work ! check dgeev documentation
+
+    ! Local variables
+    integer :: dim, info
+    integer, dimension(size(mtx, 1)) :: indices ! index of the sort eigenvalues
+    real(dp), dimension(size(mtx, 1)) :: eigenvalues_im ! imaginary part
+    real(dp), dimension(size(mtx, 1), size(mtx, 1)) :: vl ! check dgeev documentation
+
+    ! dimension of the guess space
+    dim = size(mtx, 1)
+    
+    call DGEEV("N", "V", dim, mtx, dim, eigenvalues, eigenvalues_im, vl, 1, &
+         eigenvectors, dim, work, size(work), info)
+
+    ! Return the indices of the lowest eigenvalues
+    indices = argsort(eigenvalues)
+
+    ! Sort the eigenvalues and eigenvectors of the basis
+    eigenvalues = eigenvalues(indices)
+    eigenvectors = eigenvectors(indices, :)
+    
+    return
+
+  end subroutine lapack_eigensolver
+  
+  pure function eye(m, n)
+    !> Create a matrix with ones in the diagonal and zero everywhere else
+    !> \param m: number of rows
+    !> \param n: number of colums
     !> \return matrix of size n x m
     integer, intent(in) :: n, m
     real(dp), dimension(n, m) :: eye
     
     !local variable
     integer :: i, j
-    do i=1, n
-       do j=1, m
+    do i=1, m
+       do j=1, n
           if (i /= j) then
              eye(i, j) = 0
           else
@@ -95,8 +148,6 @@ contains
           end if
        end do
     end do
-    
-    return
     
   end function eye
   

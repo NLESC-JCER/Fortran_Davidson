@@ -1,6 +1,6 @@
 
 # create binary
-set(SOURCES main.f90 numeric_kinds.f90 davidson.f90)
+set(SOURCES main.f90 numeric_kinds.f90 davidson.f90 sort.f90)
 message (STATUS "SOURCES: " ${SOURCES})
 add_executable(main ${SOURCES})
 
