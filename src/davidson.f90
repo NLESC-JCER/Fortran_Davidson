@@ -75,7 +75,6 @@ contains
     guess_eigenvalues = 0
     V = eye(size(mtx, 1), dim_sub) ! Initial orthonormal basis
 
-    print *, "here"
     ! ! Outer loop block Davidson schema
     ! outer_loop: do m=k, max_iters, k
 
@@ -88,65 +87,51 @@ contains
     allocate(eigenvectors_sub(dim_sub, size(V,1)))
     call lapack_eigensolver(projected, eigenvalues, eigenvectors_sub)
 
-    ! ! 4. Check for convergence
-    ! residue = sqrt(sum((guess_eigenvalues - eigenvalues(:lowest)) ** 2))
-    ! print *, "residues: ", residue
+    ! 4. Check for convergence
+    residue = sqrt(sum((guess_eigenvalues - eigenvalues) ** 2))
+    print *, "residues: ", residue
     
-    ! if (residue < tolerance) then
-    !    print *, "done!"
-    ! end if
+    if (residue < tolerance) then
+       print *, "done!"
+    end if
     
-    ! ! 5. Calculate the correction vector
-    ! correction = compute_correction(mtx, V, eigenvalues, ritz_vectors, lowest, method)
+    ! 5. Calculate the correction vector
+    correction = compute_correction(mtx, V, eigenvalues, ritz_vectors, lowest, method)
 
-    ! print *, "correction: ", shape(correction)
+    ! 6. Add the correction vectors to the current basis
+    if (size(V, 1) <= max_dim) then
+       ! append correction to the current basis
+       call concatenate(V, correction) 
+    else
+       ! Reduce the basis of the subspace to the current correction
+       deallocate(V)
+       call move_alloc(correction, V)
+    end if
+
+    ! 7. Orthogonalize basis
+    call lapack_qr(V)
     
-    ! ! 6. Add the correction vectors to the current basis
-    ! if (size(V, 1) <= max_dim) then
-    !    ! append correction to the current basis
-    !    call concatenate(V, correction) 
-    ! else
-    !    ! Reduce the basis of the subspace to the current correction
-    !    deallocate(V)
-    !    call move_alloc(correction, V)
-    ! end if
-
+    ! 8. Update guess
+    guess_eigenvalues = eigenvalues
+    ! end do outer_loop
+    print *, guess_eigenvalues
     
-    ! ! 7. Orthogonalize basis
-    ! call lapack_qr(V)
+    ! Free memory
+    if (allocated(correction)) then
+       deallocate(correction)
+    end if
+
+    deallocate(projected, V)
     
-    ! ! 8. Update guess
-    ! guess_eigenvalues = eigenvalues(:lowest)
-    ! ! end do outer_loop
+    ! Select the lowest eigenvalues and their corresponding ritz_vectors
+    ! They are sort in increasing order
+    eigenvalues = eigenvalues(:lowest)
+    ritz_vectors = ritz_vectors(:lowest, :)
 
-    ! ! Free memory
-    ! if (allocated(correction)) then
-    !    deallocate(correction)
-    ! end if
-
-    ! print *, "basis: ", shape(V)
-
-    ! deallocate(projected, V)
-    
-    ! ! Select the lowest eigenvalues and their corresponding ritz_vectors
-    ! ! They are sort in increasing order
-    ! eigenvalues = eigenvalues(:lowest)
-    ! ritz_vectors = ritz_vectors(:lowest, :)
-
-    ! print *, "done!"
+    print *, "done!"
     
   end subroutine eigensolver
 
-  ! subroutine check_options(max_iters, method, tolerance)
-  !   !> Check if optional values are present otherwise initialize them
-
-  !   integer, optional, intent(inout) :: max_iters
-  !   character(len=10), optional :: method
-  !   real(dp), optional :: tolerance
-
-
-  ! end subroutine check_options
-  
   subroutine lapack_eigensolver(mtx, eigenvalues, eigenvectors)
     !> Call the DGEEV subroutine lapack to compute ALL the eigenvalues
     !> and corresponding eigenvectors of mtx
@@ -191,12 +176,10 @@ contains
     ! Sort the eigenvalues and eigenvectors of the basis
     eigenvalues_work_re = eigenvalues_work_re(indices)
     eigenvectors_work = eigenvectors_work(:, indices)
-
     
     ! Take the lowest eigenvalues/eigenvectors pairs
     eigenvalues = eigenvalues_work_re(1:lowest)
     eigenvectors = eigenvectors_work(:, [(i, i=1,lowest)])
-
     
     ! release memory
     deallocate(work)
@@ -312,6 +295,8 @@ contains
        do j=1, m
           if (i < j) then
              trn(j, i) = trn(i, j)
+          else if (i == j) then
+             trn(i, i) = i
           end if
        end do
     end do
