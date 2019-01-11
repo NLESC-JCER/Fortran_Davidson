@@ -9,18 +9,18 @@ module davidson
   !> \private
   private :: concatenate
   !> \public
-  public :: eigensolver, eye, lapack_eigensolver, lapack_qr
+  public :: eigensolver, eye, lapack_eigensolver, lapack_qr, generate_triangular
   
   interface
-     module function compute_correction(mtx, V, eigenvalues, eigenvectors, lowest, method) &
+     module function compute_correction(mtx, V, eigenvalues, ritz_vectors, lowest, method) &
           result(correction)
        !> compute the correction vector using `method`
        
        integer, intent(in) :: lowest
        real(dp), dimension(:), intent(in) :: eigenvalues
-       real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
+       real(dp), dimension(:, :), intent(in) :: mtx, V, ritz_vectors
        character(len=10), optional :: method
-       real(dp), dimension(size(mtx, 2), lowest) :: correction
+       real(dp), dimension(lowest * 2, size(mtx, 2)) :: correction
        
      end function compute_correction
      
@@ -28,7 +28,7 @@ module davidson
   
 contains
   
-  subroutine eigensolver(mtx, eigenvalues, eigenvectors, lowest, method, max_iters, &
+  subroutine eigensolver(mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
        tolerance)
     !> The current implementation uses a general  davidson algorithm, meaning
     !> that it compute all the eigenvalues simultaneusly. The family
@@ -36,23 +36,26 @@ contains
     !> vector is computed.
     
     !> \param mtx: Matrix to diagonalize
-    !> \param lowest: Number of lowest eigenvalues/eigenvectors to compute
+    !> \param eigenvalues: Computed eigenvalues
+    !> \param ritz_vectors: approximation to the eigenvectors
+    !> \param lowest: Number of lowest eigenvalues/ritz_vectors to compute
     !> \param method: Method to compute the correction vector. Available
     !> methods are,
     !> DPR: Diagonal-Preconditioned-Residue
     !> \param max_iters: Maximum number of iterations
     !> \param tolerance: norm-2 error of the eigenvalues
-    !> \return eigenvalues and eigenvectors of the matrix `mtx`
+    !> \return eigenvalues and ritz_vectors of the matrix `mtx`
 
 
     ! input/output variable
     integer, intent(in) :: lowest
-    integer, optional :: max_iters
     real(dp), dimension(:, :), intent(in) :: mtx
     real(dp), dimension(:), intent(out) :: eigenvalues
-    real(dp), dimension(:, :), intent(out) :: eigenvectors
-    real(dp), optional :: tolerance
-    character(len=10), optional :: method
+    real(dp), dimension(:, :), intent(out) :: ritz_vectors
+    integer, intent(in) :: max_iters
+    real(dp), intent(in) :: tolerance
+    character(len=10), intent(in) :: method
+
     
     !local variables
     integer :: dim_sub, max_dim
@@ -60,13 +63,8 @@ contains
 
     ! Basis of subspace of approximants
     real(dp), dimension(lowest):: guess_eigenvalues
-    real(dp), dimension(:, :), allocatable :: correction, projected, V
+    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, projected, V
 
-    ! Check optional arguments
-    if (.not. present(max_iters)) max_iters=1000
-    if (.not. present(method)) method="DPR"
-    if (.not. present(tolerance)) tolerance=1e-8
-        
     ! Initial subpsace dimension
     dim_sub = lowest * 2
 
@@ -76,7 +74,8 @@ contains
     ! 1. Variables initialization
     guess_eigenvalues = 0
     V = eye(size(mtx, 1), dim_sub) ! Initial orthonormal basis
-    
+
+    print *, "here"
     ! ! Outer loop block Davidson schema
     ! outer_loop: do m=k, max_iters, k
 
@@ -84,53 +83,76 @@ contains
     ! 2. Generate subpace matrix problem by projecting into V
     projected = matmul(transpose(V), matmul(mtx, V))
 
-    ! 3. compute the eigenvalues and their corresponding eigenvectors
+    ! 3. compute the eigenvalues and their corresponding ritz_vectors
     ! for the projected matrix using lapack
-    call lapack_eigensolver(projected, eigenvalues, eigenvectors)
-    
-    ! 4. Check for convergence
-    residue = sqrt(sum(guess_eigenvalues - eigenvalues(:lowest) ** 2))
-    
-    if (residue < tolerance) then
-       print *, "done!"
-    end if
-    
-    ! 5. Calculate the correction vector
-    correction = compute_correction(mtx, V, eigenvalues, eigenvectors, lowest, method)
+    allocate(eigenvectors_sub(dim_sub, size(V,1)))
+    call lapack_eigensolver(projected, eigenvalues, eigenvectors_sub)
 
-    ! 6. Add the correction vectors to the current basis
-    if (size(V, 1) <= max_dim) then
-       ! append correction to the current basis
-       call concatenate(V, correction) 
-    else
-       ! Reduce the basis of the subspace to the current correction
-       deallocate(V)
-       call move_alloc(correction, V)
-    end if
-
-    ! 7. Orthogonalize basis
-    call lapack_qr(V)
+    ! ! 4. Check for convergence
+    ! residue = sqrt(sum((guess_eigenvalues - eigenvalues(:lowest)) ** 2))
+    ! print *, "residues: ", residue
     
-    ! 8. Update guess
-    guess_eigenvalues = eigenvalues(:lowest)
-    ! end do outer_loop
-
-    ! Free memory
-    deallocate(correction, projected, V)
+    ! if (residue < tolerance) then
+    !    print *, "done!"
+    ! end if
     
-    ! Select the lowest eigenvalues and their corresponding eigenvectors
-    ! They are sort in increasing order
-    eigenvalues = eigenvalues(:lowest)
-    eigenvectors = eigenvectors(:lowest, :)
+    ! ! 5. Calculate the correction vector
+    ! correction = compute_correction(mtx, V, eigenvalues, ritz_vectors, lowest, method)
+
+    ! print *, "correction: ", shape(correction)
+    
+    ! ! 6. Add the correction vectors to the current basis
+    ! if (size(V, 1) <= max_dim) then
+    !    ! append correction to the current basis
+    !    call concatenate(V, correction) 
+    ! else
+    !    ! Reduce the basis of the subspace to the current correction
+    !    deallocate(V)
+    !    call move_alloc(correction, V)
+    ! end if
+
+    
+    ! ! 7. Orthogonalize basis
+    ! call lapack_qr(V)
+    
+    ! ! 8. Update guess
+    ! guess_eigenvalues = eigenvalues(:lowest)
+    ! ! end do outer_loop
+
+    ! ! Free memory
+    ! if (allocated(correction)) then
+    !    deallocate(correction)
+    ! end if
+
+    ! print *, "basis: ", shape(V)
+
+    ! deallocate(projected, V)
+    
+    ! ! Select the lowest eigenvalues and their corresponding ritz_vectors
+    ! ! They are sort in increasing order
+    ! eigenvalues = eigenvalues(:lowest)
+    ! ritz_vectors = ritz_vectors(:lowest, :)
+
+    ! print *, "done!"
     
   end subroutine eigensolver
 
+  ! subroutine check_options(max_iters, method, tolerance)
+  !   !> Check if optional values are present otherwise initialize them
+
+  !   integer, optional, intent(inout) :: max_iters
+  !   character(len=10), optional :: method
+  !   real(dp), optional :: tolerance
+
+
+  ! end subroutine check_options
+  
   subroutine lapack_eigensolver(mtx, eigenvalues, eigenvectors)
     !> Call the DGEEV subroutine lapack to compute ALL the eigenvalues
     !> and corresponding eigenvectors of mtx
     !> \param mtx: Matrix to diaogonalize
-    !> \param eigenvalues
-    !> \param eigenvectors
+    !> \param eigenvalues: lowest eigenvalues
+    !> \param eigenvectors: corresponding eigenvectors
     ! input/output
     real(dp), dimension(:, :), intent(in) :: mtx
     real(dp), dimension(:), intent(inout) :: eigenvalues
@@ -138,35 +160,44 @@ contains
     real(dp), dimension(:), allocatable :: work ! workspace, see lapack documentation
 
     ! Local variables
-    integer :: dim, info, lwork
+    integer :: i, dim, info, lwork, lowest
     integer, dimension(size(mtx, 2)) :: indices ! index of the sort eigenvalues
-    real(dp), dimension(size(mtx, 2)) :: eigenvalues_im ! imaginary part
+     ! ALL the eigenvalues of the subpace (re, im)
+    real(dp), dimension(size(mtx, 2)) :: eigenvalues_work_re, eigenvalues_work_im
+    real(dp), dimension(size(mtx, 2), size(mtx, 2)) :: eigenvectors_work ! All the eigenvectors
     real(dp), dimension(size(mtx, 2), size(mtx, 2)) :: vl ! check dgeev documentation
-
-    ! dimension of the guess space
+    
+    ! ! dimension of the guess space
     dim = size(mtx, 2)
-
+    lowest = size(eigenvalues) ! Number of lowest eigenvalues to take
+    
     ! Query size of the optimal workspace
     allocate(work(1))
-    call DGEEV("N", "V", dim, mtx, dim, eigenvalues, eigenvalues_im, vl, 1, &
-         eigenvectors, dim, work, -1, info)
+    call DGEEV("N", "V", dim, mtx, dim, eigenvalues_work_re, eigenvalues_work_im, vl, 1, &
+         eigenvectors_work, dim, work, -1, info)
 
     ! Allocate memory for the workspace
     lwork = max(1, int(work(1)))
     deallocate(work)
     allocate(work(lwork))
-    
-    ! Compute Eigenvalues
-    call DGEEV("N", "V", dim, mtx, dim, eigenvalues, eigenvalues_im, vl, 1, &
-         eigenvectors, dim, work, lwork, info)
 
-    ! Return the indices of the lowest eigenvalues
-    indices = argsort(eigenvalues)
+    ! Compute Eigenvalues
+    call DGEEV("N", "V", dim, mtx, dim, eigenvalues_work_re, eigenvalues_work_im, vl, 1, &
+         eigenvectors_work, dim, work, lwork, info)
+
+    ! Return the indices of the  eigenvalues sorted
+    indices = argsort(eigenvalues_work_re)
 
     ! Sort the eigenvalues and eigenvectors of the basis
-    eigenvalues = eigenvalues(indices)
-    eigenvectors = eigenvectors(:, indices)
+    eigenvalues_work_re = eigenvalues_work_re(indices)
+    eigenvectors_work = eigenvectors_work(:, indices)
 
+    
+    ! Take the lowest eigenvalues/eigenvectors pairs
+    eigenvalues = eigenvalues_work_re(1:lowest)
+    eigenvectors = eigenvectors_work(:, [(i, i=1,lowest)])
+
+    
     ! release memory
     deallocate(work)
     
@@ -250,8 +281,8 @@ contains
     real(dp), dimension(:, :), intent(inout), allocatable :: arr
     real(dp), dimension(:, :), intent(in) :: brr
     real(dp), dimension(:, :), allocatable :: tmp_array
-    integer :: new_dim, dim_cols
-
+    integer :: new_dim, dim_cols, dim_rows
+    
     ! dimension
     dim_cols = size(arr, 1)
     dim_rows = size(arr, 2)
@@ -269,7 +300,24 @@ contains
     arr(dim_cols + 1: , :) = brr
 
   end subroutine concatenate
-  
+
+  function generate_triangular(m) result(trn)
+      
+    integer, intent(in) :: m ! size of the square matrix
+    integer :: i, j
+    real(dp), dimension(m, m) :: trn
+    call random_number(trn)
+    
+    do i=1, m
+       do j=1, m
+          if (i < j) then
+             trn(j, i) = trn(i, j)
+          end if
+       end do
+    end do
+    
+  end function generate_triangular
+
 
 end module davidson
 
@@ -282,27 +330,27 @@ submodule (davidson) correction_methods
   
 contains
 
-  module function compute_correction(mtx, V, eigenvalues, eigenvectors, lowest, method) &
+  module function compute_correction(mtx, V, eigenvalues, ritz_vectors, lowest, method) &
        result(correction)
     integer, intent(in) :: lowest
     real(dp), dimension(:), intent(in) :: eigenvalues
-    real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
+    real(dp), dimension(:, :), intent(in) :: mtx, V, ritz_vectors
     character(len=10), optional :: method
     real(dp), dimension(lowest, size(mtx, 2)) :: correction
     
     select case (method)
     case ("DPR")
-       correction = compute_DPR(mtx, V, eigenvalues, eigenvectors, lowest)
+       correction = compute_DPR(mtx, V, eigenvalues, ritz_vectors, lowest)
     case default
-       correction = compute_DPR(mtx, V, eigenvalues, eigenvectors, lowest)
+       correction = compute_DPR(mtx, V, eigenvalues, ritz_vectors, lowest)
     end select
     
   end function compute_correction
 
-  function compute_DPR(mtx, V, eigenvalues, eigenvectors, lowest) result(correction)
+  function compute_DPR(mtx, V, eigenvalues, ritz_vectors, lowest) result(correction)
     integer, intent(in) :: lowest
     real(dp), dimension(:), intent(in) :: eigenvalues
-    real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
+    real(dp), dimension(:, :), intent(in) :: mtx, V, ritz_vectors
     real(dp), dimension(lowest, size(mtx, 2)) :: correction
     
   end function compute_DPR

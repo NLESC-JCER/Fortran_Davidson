@@ -1,32 +1,23 @@
 program main
   use numeric_kinds, only: dp
-  use davidson, only: lapack_eigensolver, lapack_qr, eye
-  
+  use davidson, only: lapack_eigensolver, lapack_qr, eigensolver, eye, generate_triangular
+
   implicit none
-  integer :: i, j, info
+  integer :: i
   real(dp) :: arr(2, 5) = reshape([(i, i=0,9)], [2, 5])
   real(dp) :: matrix(3, 3) = reshape([1, 2, 3, 2, 4, 5, 3, 5, 6], [3, 3])
-  real(dp), dimension(3) :: eigenvalues
-  real(dp), dimension(3, 3) :: eigenvectors, rs, copy
-  real(dp), dimension(2, 3) :: xs
-  
-  copy = matrix
-  call lapack_eigensolver(matrix, eigenvalues, eigenvectors)
+  real(dp), dimension(2) :: eigenvalues
+  real(dp), dimension(3, 2) :: eigenvectors
+  real(dp), dimension(3, 2) :: copy
+  ! real(dp), dimension(10, 10) :: mtx, rs
+  ! rs = generate_triangular(10)
+  ! mtx = eye(10, 10) + rs * 0.01
 
-  print *, "info: ", info
-  print *, "eigenvalues: ",  eigenvalues
+  ! call eigensolver(mtx, eigenvalues, eigenvectors, 3, "DPR", 1000, 1e-8)
+
+  ! copy = matrix
+  call lapack_eigensolver(matrix, eigenvalues, eigenvectors)
   print *, "eigenvectors: ", eigenvectors
 
-  rs =  matmul(transpose(eigenvectors), matmul(copy, eigenvectors))
-  print *, "check: ", rs(1,1) -eigenvalues(1) < 1e-8
-  
-  call lapack_qr(arr)
-
-  print *, "QR: ", arr(:, 1)
-
-  xs = eye(3,2)
-
-  print *, "eye: ", xs(:, 1)
-  
-  
+  print *, eigenvalues
 end program main
