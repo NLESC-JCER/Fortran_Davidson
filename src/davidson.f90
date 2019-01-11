@@ -7,9 +7,9 @@ module davidson
   implicit none
 
   !> \private
-  private :: concatenate, eye
+  private :: concatenate
   !> \public
-  public :: eigensolver, lapack_eigensolver, lapack_qr
+  public :: eigensolver, eye, lapack_eigensolver, lapack_qr
   
   interface
      module function compute_correction(mtx, V, eigenvalues, eigenvectors, lowest, method) &
@@ -20,7 +20,7 @@ module davidson
        real(dp), dimension(:), intent(in) :: eigenvalues
        real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
        character(len=10), optional :: method
-       real(dp), dimension(size(mtx, 1), lowest) :: correction
+       real(dp), dimension(size(mtx, 2), lowest) :: correction
        
      end function compute_correction
      
@@ -71,7 +71,7 @@ contains
     dim_sub = lowest * 2
 
     ! maximum dimension of the basis for the subspace
-    max_dim = size(mtx, 1) / 2
+    max_dim = size(mtx, 2) / 2
     
     ! 1. Variables initialization
     guess_eigenvalues = 0
@@ -99,7 +99,7 @@ contains
     correction = compute_correction(mtx, V, eigenvalues, eigenvectors, lowest, method)
 
     ! 6. Add the correction vectors to the current basis
-    if (size(V, 2) <= max_dim) then
+    if (size(V, 1) <= max_dim) then
        ! append correction to the current basis
        call concatenate(V, correction) 
     else
@@ -139,12 +139,12 @@ contains
 
     ! Local variables
     integer :: dim, info, lwork
-    integer, dimension(size(mtx, 1)) :: indices ! index of the sort eigenvalues
-    real(dp), dimension(size(mtx, 1)) :: eigenvalues_im ! imaginary part
-    real(dp), dimension(size(mtx, 1), size(mtx, 1)) :: vl ! check dgeev documentation
+    integer, dimension(size(mtx, 2)) :: indices ! index of the sort eigenvalues
+    real(dp), dimension(size(mtx, 2)) :: eigenvalues_im ! imaginary part
+    real(dp), dimension(size(mtx, 2), size(mtx, 2)) :: vl ! check dgeev documentation
 
     ! dimension of the guess space
-    dim = size(mtx, 1)
+    dim = size(mtx, 2)
 
     ! Query size of the optimal workspace
     allocate(work(1))
@@ -183,8 +183,8 @@ contains
     integer :: info, lwork, m, n
 
     ! Matrix shape
-    m = size(basis, 1)
-    n = size(basis, 2)
+    n = size(basis, 1)
+    m = size(basis, 2)
 
     ! 1. Call the QR decomposition
     ! 1.1 Query size of the workspace (Check lapack documentation)
@@ -219,7 +219,7 @@ contains
     
   end subroutine lapack_qr
 
-  pure function eye(m, n)
+  pure function eye(n, m)
     !> Create a matrix with ones in the diagonal and zero everywhere else
     !> \param m: number of rows
     !> \param n: number of colums
@@ -250,21 +250,23 @@ contains
     real(dp), dimension(:, :), intent(inout), allocatable :: arr
     real(dp), dimension(:, :), intent(in) :: brr
     real(dp), dimension(:, :), allocatable :: tmp_array
-    integer :: new_dim, dim_col
+    integer :: new_dim, dim_cols
 
     ! dimension
-    dim_col = size(arr, 2)
-    new_dim = dim_col + size(brr, 2)
+    dim_cols = size(arr, 1)
+    dim_rows = size(arr, 2)
+    ! Number of columns of the new matrix
+    new_dim = dim_cols + size(brr, 1)
 
     ! move to temporal array
-    allocate(tmp_array(size(arr, 1), new_dim))
-    tmp_array(: dim_col, :) = arr
+    allocate(tmp_array(new_dim, dim_rows))
+    tmp_array(:dim_cols, :) = arr
 
     ! Move to new expanded matrix
     deallocate(arr)
     call move_alloc(tmp_array, arr)
 
-    arr(dim_col + 1: , :) = brr
+    arr(dim_cols + 1: , :) = brr
 
   end subroutine concatenate
   
@@ -274,7 +276,7 @@ end module davidson
 
 submodule (davidson) correction_methods
   !> submodule containing the implementations of different kind
-  !> of correction vector for the Davidson's diagonalization
+  !> of correction vectors for the Davidson's diagonalization algorithm
 
   implicit none
   
@@ -286,7 +288,7 @@ contains
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
     character(len=10), optional :: method
-    real(dp), dimension(size(mtx, 1), lowest) :: correction
+    real(dp), dimension(lowest, size(mtx, 2)) :: correction
     
     select case (method)
     case ("DPR")
@@ -301,7 +303,7 @@ contains
     integer, intent(in) :: lowest
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
-    real(dp), dimension(size(mtx, 1), lowest) :: correction
+    real(dp), dimension(lowest, size(mtx, 2)) :: correction
     
   end function compute_DPR
   
