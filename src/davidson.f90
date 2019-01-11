@@ -4,13 +4,12 @@ module davidson
 
   use numeric_kinds, only: dp
   use sort, only: argsort
-  ! use F90_LAPACK, only: dgeev
   implicit none
 
   !> \private
-  private :: eye, lapack_eigensolver
+  private :: concatenate, eye
   !> \public
-  public :: eigensolver
+  public :: eigensolver, lapack_eigensolver
   
   interface
      module function compute_correction(mtx, V, eigenvalues, eigenvectors, lowest, method) &
@@ -42,6 +41,7 @@ contains
     !> methods are,
     !> DPR: Diagonal-Preconditioned-Residue
     !> \param max_iters: Maximum number of iterations
+    !> \param tolerance: norm-2 error of the eigenvalues
     !> \return eigenvalues and eigenvectors of the matrix `mtx`
 
 
@@ -55,38 +55,37 @@ contains
     character(len=10), optional :: method
     
     !local variables
-    integer :: dim_sub
-    integer, dimension(2) :: sh
+    integer :: dim_sub, max_dim
     real(dp) :: residue
 
     ! Basis of subspace of approximants
     real(dp), dimension(lowest):: guess_eigenvalues
-    real(dp), dimension(size(mtx, 1), lowest * 2) :: correction
-    real(dp), dimension(:, :), allocatable :: projected, V
+    real(dp), dimension(:, :), allocatable :: correction, projected, V
 
     ! Check optional arguments
     if (.not. present(max_iters)) max_iters=1000
     if (.not. present(method)) method="DPR"
     if (.not. present(tolerance)) tolerance=1e-8
         
-    ! subpsace dimension
+    ! Initial subpsace dimension
     dim_sub = lowest * 2
-    
-    ! matrix dimension
-    sh = shape(mtx)
 
+    ! maximum dimension of the basis for the subspace
+    max_dim = size(mtx, 1) / 2
+    
     ! 1. Variables initialization
     guess_eigenvalues = 0
-    V = eye(sh(1), dim_sub) ! Initial orthonormal basis
+    V = eye(size(mtx, 1), dim_sub) ! Initial orthonormal basis
     
     ! ! Outer loop block Davidson schema
     ! outer_loop: do m=k, max_iters, k
 
-    ! 2. Generate subpace matrix problem
+    
+    ! 2. Generate subpace matrix problem by projecting into V
     projected = matmul(transpose(V), matmul(mtx, V))
 
-    ! 3. compute the `lowest` eigenvalues and their corresponding eigenvectors
-    ! of the project matrix using lapack
+    ! 3. compute the eigenvalues and their corresponding eigenvectors
+    ! for the projected matrix using lapack
     call lapack_eigensolver(projected, eigenvalues, eigenvectors)
     
     ! 4. Check for convergence
@@ -100,14 +99,24 @@ contains
     correction = compute_correction(mtx, V, eigenvalues, eigenvectors, lowest, method)
 
     ! 6. Add the correction vectors to the current basis
-    call concatenate(V, correction)
+    if (size(V, 2) <= max_dim) then
+       ! append correction to the current basis
+       call concatenate(V, correction) 
+    else
+       ! Reduce the basis of the subspace to the current correction
+       deallocate(V)
+       call move_alloc(correction, V)
+    end if
+
+    ! 7. Orthogonalize basis
+    call orthogonalize_basis(V)
     
-    ! Update guess
+    ! 8. Update guess
     guess_eigenvalues = eigenvalues(:lowest)
     ! end do outer_loop
 
     ! Free memory
-    deallocate(V, projected)
+    deallocate(correction, projected, V)
     
     ! Select the lowest eigenvalues and their corresponding eigenvectos
     eigenvalues = eigenvalues(:lowest)
@@ -125,17 +134,26 @@ contains
     real(dp), dimension(:, :), intent(in) :: mtx
     real(dp), dimension(:), intent(inout) :: eigenvalues
     real(dp), dimension(:, :), intent(inout) :: eigenvectors
-    real(dp), dimension(5 * size(eigenvalues)) :: work ! check dgeev documentation
+    real(dp), dimension(:), allocatable :: work ! workspace, see lapack documentation
 
     ! Local variables
-    integer :: dim, info
+    integer :: dim, info, lwork
     integer, dimension(size(mtx, 1)) :: indices ! index of the sort eigenvalues
     real(dp), dimension(size(mtx, 1)) :: eigenvalues_im ! imaginary part
     real(dp), dimension(size(mtx, 1), size(mtx, 1)) :: vl ! check dgeev documentation
 
     ! dimension of the guess space
     dim = size(mtx, 1)
-    
+
+    ! Query size of the optimal workspace
+    allocate(work(1))
+    call DGEEV("N", "V", dim, mtx, dim, eigenvalues, eigenvalues_im, vl, 1, &
+         eigenvectors, dim, work, -1, info)
+    lwork = max(1, int(work(1)))
+
+    ! Compute Eigenvalues
+    deallocate(work)
+    allocate(work(lwork))
     call DGEEV("N", "V", dim, mtx, dim, eigenvalues, eigenvalues_im, vl, 1, &
          eigenvectors, dim, work, size(work), info)
 
@@ -144,10 +162,23 @@ contains
 
     ! Sort the eigenvalues and eigenvectors of the basis
     eigenvalues = eigenvalues(indices)
+    ! Right eigenvectors are columns of this matrix
+    eigenvectors = transpose(eigenvectors)
     eigenvectors = eigenvectors(indices, :)
     
   end subroutine lapack_eigensolver
-  
+
+
+  subroutine orthogonalize_basis(basis)
+    !> Orthoghonalize the basis using the QR factorization
+    !> \param basis
+    !> \return orthogonal basis
+    
+    real(dp), dimension(:, :), intent(inout) :: basis
+    real(dp), dimension(:), allocatable :: work ! workspace, see lapack documentation
+
+  end subroutine orthogonalize_basis
+    
   pure function eye(m, n)
     !> Create a matrix with ones in the diagonal and zero everywhere else
     !> \param m: number of rows
