@@ -9,7 +9,7 @@ module davidson
   !> \private
   private :: concatenate, eye
   !> \public
-  public :: eigensolver, lapack_eigensolver, orthogonalize_basis
+  public :: eigensolver, lapack_eigensolver, lapack_qr
   
   interface
      module function compute_correction(mtx, V, eigenvalues, eigenvectors, lowest, method) &
@@ -109,7 +109,7 @@ contains
     end if
 
     ! 7. Orthogonalize basis
-    call orthogonalize_basis(V)
+    call lapack_qr(V)
     
     ! 8. Update guess
     guess_eigenvalues = eigenvalues(:lowest)
@@ -165,9 +165,7 @@ contains
 
     ! Sort the eigenvalues and eigenvectors of the basis
     eigenvalues = eigenvalues(indices)
-    ! Right eigenvectors are columns of this matrix
-    eigenvectors = transpose(eigenvectors)
-    eigenvectors = eigenvectors(indices, :)
+    eigenvectors = eigenvectors(:, indices)
 
     ! release memory
     deallocate(work)
@@ -175,7 +173,7 @@ contains
   end subroutine lapack_eigensolver
 
 
-  subroutine orthogonalize_basis(basis)
+  subroutine lapack_qr(basis)
     !> Orthoghonalize the basis using the QR factorization
     !> \param basis
     !> \return orthogonal basis    
@@ -187,25 +185,40 @@ contains
     ! Matrix shape
     m = size(basis, 1)
     n = size(basis, 2)
-    
-    ! Query size of the workspace (Check lapack documentation)
+
+    ! 1. Call the QR decomposition
+    ! 1.1 Query size of the workspace (Check lapack documentation)
     allocate(work(1))
     call DGEQRF(m, n, basis, max(1, m), tau, work, -1, info)
 
-    ! Allocate memory for the workspace
+    ! 1.2 Allocate memory for the workspace
     lwork = max(1, int(work(1)))
     deallocate(work)
     allocate(work(lwork))
 
-    ! Call QR factorization
+    ! 1.3 Call QR factorization
     allocate(tau(min(m, n)))
     call DGEQRF(m, n, basis, max(1, m), tau, work, lwork, info)
+    deallocate(work)
+    
+    ! 2. Generates an orthonormal matrix
+    ! 2.1 Query size of the workspace (Check lapack documentation)
+    allocate(work(1))
+    call DORGQR(m, n, min(m, n), basis, max(1, m), tau, work, -1, info)
+
+    ! 2.2 Allocate memory fo the workspace
+    lwork = max(1, int(work(1)))
+    deallocate(work)
+    allocate(work(lwork))
+
+    ! 2.3 compute the matrix Q
+    call DORGQR(m, n, min(m, n), basis, max(1, m), tau, work, lwork, info)
     
     ! release memory
     deallocate(work, tau)
     
-  end subroutine orthogonalize_basis
-    
+  end subroutine lapack_qr
+
   pure function eye(m, n)
     !> Create a matrix with ones in the diagonal and zero everywhere else
     !> \param m: number of rows
@@ -219,7 +232,7 @@ contains
     do i=1, m
        do j=1, n
           if (i /= j) then
-             eye(i, j) = 0
+             eye(j, i) = 0
           else
              eye(i, i) = 1
           end if
