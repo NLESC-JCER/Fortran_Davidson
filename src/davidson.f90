@@ -9,7 +9,7 @@ module davidson
   !> \private
   private :: concatenate, eye
   !> \public
-  public :: eigensolver, lapack_eigensolver
+  public :: eigensolver, lapack_eigensolver, orthogonalize_basis
   
   interface
      module function compute_correction(mtx, V, eigenvalues, eigenvectors, lowest, method) &
@@ -118,7 +118,8 @@ contains
     ! Free memory
     deallocate(correction, projected, V)
     
-    ! Select the lowest eigenvalues and their corresponding eigenvectos
+    ! Select the lowest eigenvalues and their corresponding eigenvectors
+    ! They are sort in increasing order
     eigenvalues = eigenvalues(:lowest)
     eigenvectors = eigenvectors(:lowest, :)
     
@@ -149,13 +150,15 @@ contains
     allocate(work(1))
     call DGEEV("N", "V", dim, mtx, dim, eigenvalues, eigenvalues_im, vl, 1, &
          eigenvectors, dim, work, -1, info)
-    lwork = max(1, int(work(1)))
 
-    ! Compute Eigenvalues
+    ! Allocate memory for the workspace
+    lwork = max(1, int(work(1)))
     deallocate(work)
     allocate(work(lwork))
+    
+    ! Compute Eigenvalues
     call DGEEV("N", "V", dim, mtx, dim, eigenvalues, eigenvalues_im, vl, 1, &
-         eigenvectors, dim, work, size(work), info)
+         eigenvectors, dim, work, lwork, info)
 
     ! Return the indices of the lowest eigenvalues
     indices = argsort(eigenvalues)
@@ -165,6 +168,9 @@ contains
     ! Right eigenvectors are columns of this matrix
     eigenvectors = transpose(eigenvectors)
     eigenvectors = eigenvectors(indices, :)
+
+    ! release memory
+    deallocate(work)
     
   end subroutine lapack_eigensolver
 
@@ -172,11 +178,32 @@ contains
   subroutine orthogonalize_basis(basis)
     !> Orthoghonalize the basis using the QR factorization
     !> \param basis
-    !> \return orthogonal basis
-    
+    !> \return orthogonal basis    
     real(dp), dimension(:, :), intent(inout) :: basis
     real(dp), dimension(:), allocatable :: work ! workspace, see lapack documentation
+    real(dp), dimension(:), allocatable :: tau ! see DGEQRF documentation
+    integer :: info, lwork, m, n
 
+    ! Matrix shape
+    m = size(basis, 1)
+    n = size(basis, 2)
+    
+    ! Query size of the workspace (Check lapack documentation)
+    allocate(work(1))
+    call DGEQRF(m, n, basis, max(1, m), tau, work, -1, info)
+
+    ! Allocate memory for the workspace
+    lwork = max(1, int(work(1)))
+    deallocate(work)
+    allocate(work(lwork))
+
+    ! Call QR factorization
+    allocate(tau(min(m, n)))
+    call DGEQRF(m, n, basis, max(1, m), tau, work, lwork, info)
+    
+    ! release memory
+    deallocate(work, tau)
+    
   end subroutine orthogonalize_basis
     
   pure function eye(m, n)
