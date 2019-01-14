@@ -59,7 +59,7 @@ contains
 
     
     !local variables
-    integer :: dim_sub, m, max_dim
+    integer :: dim_sub, m, max_dim, k
     real(dp) :: residue
     
     ! Basis of subspace of approximants
@@ -70,7 +70,7 @@ contains
     real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, projected, V
 
     ! Initial subpsace dimension
-    dim_sub = lowest + 1
+    dim_sub = lowest + lowest / 2
 
     ! maximum dimension of the basis for the subspace
     max_dim = size(mtx, 2) / 2
@@ -347,6 +347,8 @@ contains
     select case (method)
     case ("DPR")
        correction = compute_DPR(mtx, V, eigenvalues, eigenvectors, dim_sub)
+    case ("GJD")
+       correction = compute_GJD(mtx, V, eigenvalues, eigenvectors, dim_sub)
     case default
        correction = compute_DPR(mtx, V, eigenvalues, eigenvectors, dim_sub)
     end select
@@ -354,6 +356,7 @@ contains
   end function compute_correction
 
   function compute_DPR(mtx, V, eigenvalues, eigenvectors, dim_sub) result(correction)
+    !> compute Diagonal-Preconditioned-Residue (DPR) correction
     integer, intent(in) :: dim_sub
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
@@ -368,11 +371,29 @@ contains
     diag = eye(m, m)
     
     ! correction = 0
-    do k=1, dim_sub
+    do  k=1, dim_sub
        correction(:, k) =  matmul(mtx - diag *eigenvalues(k), matmul(V, eigenvectors(:, k))) / (eigenvalues(k) - mtx(k, k))
     end do
     
   end function compute_DPR
+
+  function compute_GJD(mtx, V, eigenvalues, eigenvectors, dim_sub) result(correction)
+    !> Compute the Generalized Jacobi Davidson (GJD) correction
+    integer, intent(in) :: dim_sub
+    real(dp), dimension(:), intent(in) :: eigenvalues
+    real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
+    real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
+
+    ! ! local variables
+    ! integer :: k
+    ! real(dp), dimension(size(mtx, 1)) :: rs
+
+    ! do k=1,dim_sub
+    ! residues = matmul(V, eigenvectors)
+    ! end do
+    
+    
+    
+  end function compute_GJD
   
-     
 end submodule correction_methods
