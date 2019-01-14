@@ -1,23 +1,31 @@
 program main
   use numeric_kinds, only: dp
-  use davidson, only: lapack_eigensolver, lapack_qr, eigensolver, eye, generate_triangular
+  use davidson, only: lapack_eigensolver, lapack_qr, eigensolver, eye, generate_diagonal_dominant, concatenate
 
   implicit none
-  integer :: i
+  integer :: i, j
   real(dp) :: arr(2, 5) = reshape([(i, i=0,9)], [2, 5])
+  real(dp) :: brr(2, 2) = reshape([(i, i=10,13)], [2, 2])
   real(dp) :: matrix(3, 3) = reshape([1, 2, 3, 2, 4, 5, 3, 5, 6], [3, 3])
   real(dp), dimension(3) :: eigenvalues
-  real(dp), dimension(3, 10) :: eigenvectors
-  real(dp), dimension(3, 2) :: copy
-  real(dp), dimension(10, 10) :: mtx, rs
-  rs = generate_triangular(10)
+  real(dp), dimension(20, 3) :: eigenvectors
+  real(dp), dimension(3, 3) :: copy
+  real(dp), dimension(20, 20) :: mtx, rs
+  real(dp), dimension(:, :), allocatable :: xs
+  mtx = generate_diagonal_dominant(20, 1d-4)
 
-  mtx = eye(10, 10) + rs * 0.01
+  open(unit=3541, file="matrix.txt")
+  do i=1,20
+     do j=1,20
+        if (i<=j) then
+           write(3541, *) mtx(i, j)
+        end if
+     end do
+  end do
+  close(3541)
+  
+  call eigensolver(mtx, eigenvalues, eigenvectors, 3, "DPR", 100, 1d-8)
 
-  call eigensolver(mtx, eigenvalues, eigenvectors, 3, "DPR", 1000, 1e-8)
-
-  ! copy = matrix
-  ! call lapack_eigensolver(matrix, eigenvalues, eigenvectors)
-
-  ! print *, eigenvalues
+  print *, eigenvalues
+  print *, eigenvectors(:, 1)
 end program main
