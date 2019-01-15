@@ -7,9 +7,9 @@ module davidson
   implicit none
 
   !> \private
-  private :: eye, lapack_qr, concatenate
+  private :: eye, lapack_dgesv, lapack_eigensolver, lapack_qr, concatenate
   !> \public
-  public :: eigensolver, generate_diagonal_dominant, lapack_eigensolver, lapack_dgesv
+  public :: eigensolver, generate_diagonal_dominant, norm
   
   interface
      module function compute_correction(mtx, V, eigenvalues, eigenvectors, dim_sub, method) &
@@ -64,7 +64,6 @@ contains
     real(dp), intent(in) :: tolerance
     character(len=*), intent(in) :: method
 
-    
     !local variables
     integer :: dim_sub, m, max_dim, k
     real(dp) :: residue
@@ -76,7 +75,7 @@ contains
     real(dp), dimension(:), allocatable :: eigenvalues_sub
     real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, projected, V
 
-    ! Initial subpsace dimension
+    ! Iteration subpsace dimension
     dim_sub = lowest + lowest / 2
 
     ! maximum dimension of the basis for the subspace
@@ -120,8 +119,7 @@ contains
           ! 6. Increase Basis size
           call concatenate(V, correction) 
        else
-          ! 6. Reduce the basis of the subspace to the current correction
-          ! call move_alloc(correction(:, :dim_sub), V)
+          ! 6. Otherwise reduce the basis of the subspace to the current correction
           V  = matmul(V, eigenvectors_sub(:, :lowest))
        end if
 
@@ -374,7 +372,6 @@ contains
     case ("GJD")
        correction = compute_GJD(mtx, V, eigenvalues, eigenvectors, dim_sub)
     case default
-       print *, "call default"
        correction = compute_DPR(mtx, V, eigenvalues, eigenvectors, dim_sub)
     end select
     
@@ -415,9 +412,10 @@ contains
     real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: arr, diag, ritz_matrix, xs, ys
     real(dp), dimension(size(mtx, 1), 1) :: brr
 
+    ! Diagonal matrix
     m = size(mtx, 1)
     diag = eye(m, m)
-    
+
     do k=1,dim_sub
        ritz_vector(:, 1) = matmul(mtx - diag *eigenvalues(k), matmul(V, eigenvectors(:, k)))
        ritz_matrix = matmul(ritz_vector, transpose(ritz_vector))

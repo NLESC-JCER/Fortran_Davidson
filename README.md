@@ -58,7 +58,7 @@ cmake --build build
 Dependencies
 ------------
 This packages assumes that you have installed the following packages:
- * A Fortran compiler
+ * A Fortran compiler >=  version 6.0 
  * [CMake](https://cmake.org/)
  * [Lapack](http://www.netlib.org/lapack/)
 	
