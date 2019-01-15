@@ -8,6 +8,8 @@ addons:
     packages:
       - cmake
       - gfortran
+      - libblas-dev
+      - liblapack-dev
 
 script:
   - cmake -H. -Bbuild && cmake --build build
