@@ -9,9 +9,10 @@ addons:
       - cmake
       - libblas-dev
       - liblapack-dev
-      - gfortran
+      - gfortran-7
       
 script:
+  - ln -s /usr/bin/gfortran-7 /usr/bin/gfortran
   - cmake -H. -Bbuild && cmake --build build
   - ./bin/main
   
