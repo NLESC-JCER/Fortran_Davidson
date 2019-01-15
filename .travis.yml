@@ -9,10 +9,7 @@ addons:
       - cmake
       - libblas-dev
       - liblapack-dev
-
-before_install:
-  - sudo apt-get update -qq -y
-  - sudo apt-get install -y gfortran      
+      - gfortran-8
       
 script:
   - cmake -H. -Bbuild && cmake --build build
