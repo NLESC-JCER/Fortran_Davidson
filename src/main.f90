@@ -1,7 +1,7 @@
 program main
   use numeric_kinds, only: dp
   use davidson, only: eigensolver, generate_diagonal_dominant, lapack_dgesv, lapack_eigensolver
-
+ 
   implicit none
   integer :: i, j
   real(dp) :: arr(2, 5) = reshape([(i, i=0,9)], [2, 5])
