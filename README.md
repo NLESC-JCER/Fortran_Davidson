@@ -9,8 +9,7 @@ Available correction methods are:
  * **GJD**: Generalized Jacobi Davidson
 
 
-Note:
-#####
+### Note:
 The Davidson method is suitable for **diagonal-dominant symmetric matrices**, that are quite common
 in certain scientific problems like [electronic structure](). The Davidson method could be not practical
 for other kind of symmetric matrice.
@@ -43,8 +42,7 @@ matrix with entries to the diagonal close to row number `(i=1, number_of_rows)`
 and random number of the order `1e-4` on the off-diagonal entries.
 
 
-References:
-##########
+### References:
  * [Davidson diagonalization method and its applications to electronic structure calculations](https://pdfs.semanticscholar.org/5811/eaf768d1a006f505dfe24f329874a679ba59.pdf?_ga=2.219777566.664950272.1547548596-1327556406.1547548596)
  * [Numerical Methods for Large Eigenvalue Problem](https://doi.org/10.1137/1.9781611970739)
 
