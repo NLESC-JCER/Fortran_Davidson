@@ -60,6 +60,7 @@ program main
   use numeric_kinds, only: dp
   use davidson, only: eigensolver, norm
   use test_utils, only: diagonal , read_matrix, write_vector
+  use benchmark, only: compute_benchmark
  
   implicit none
   integer :: i, j
@@ -68,6 +69,9 @@ program main
   real(dp), dimension(100, 100) :: mtx
   real(dp) :: test_norm_eigenvalues, test_norm_eigenvectors
   real(dp), dimension(100) :: test_DPR, test_GJD, arr
+  real(dp), dimension(7, 2) :: times
+  integer, dimension(7) :: dims
+  character(len=20) :: arg
 
   mtx = read_matrix("tests/matrix.txt", 100)
 
@@ -85,7 +89,16 @@ program main
   print *, "DPR: ", norm(test_DPR(:3) - 1) < 1e-8
   print *, "GJD: ", norm(test_GJD(:3) - 1) < 1e-8
 
-  call write_vector("eigenvalues_DPR.txt", eigenvalues_DPR)
-  call write_vector("eigenvalues_GJD.txt", eigenvalues_DPR)
+  ! RUn benchmark
+  call get_command_argument(1, arg)
+  if (arg == "benchmark") then
+     print *,
+     print *, "Running Benchmark! "
+     dims = [10, 50, 100, 500, 1000, 5000, 10 ** 4] !, 10 ** 5, 5 * 10 ** 5, 10 ** 6, 5 * 10 ** 6, 10 ** 7]
+     call compute_benchmark(dims, 3, times)
+     print *, times(:, 1)
+  end if
+  
+  ! call write_vector("eigenvalues_GJD.txt", eigenvalues_DPR)
   
 end program main

@@ -358,30 +358,29 @@ contains
   end function argsort
   
   
-  function generate_diagonal_dominant(m, sparsity) result(trn)
+  function generate_diagonal_dominant(m, sparsity) result(arr)
     !> Generate a diagonal dominant square matrix of dimension m
       
     integer, intent(in) :: m ! size of the square matrix
-    integer :: i, j
+    integer(dp) :: i, j
     real(dp) :: sparsity 
-    real(dp), dimension(m, m) :: trn
-    call random_number(trn)
+    real(dp), dimension(m, m) :: arr
+    call random_number(arr)
 
-    trn = trn * sparsity
-    
-    do i=1, m
-       do j=1, m
-          if (i < j) then
-             trn(j, i) = trn(i, j)
-          else if (i == j) then
-             trn(i, i) = i
+    arr = arr * sparsity
+    do j=1, m
+       do i=1, m
+          if (i > j) then
+             arr(i, j) = arr(j, i)
+          else if(i == j) then
+             arr(i, i) = i
           end if
        end do
     end do
     
   end function generate_diagonal_dominant
 
-
+    
 end module davidson
 
 
@@ -451,7 +450,7 @@ contains
     m = size(mtx, 1)
     diag = eye(m, m)
 
-    do k=1,dim_sub
+    do k=1, dim_sub
        ritz_vector(:, 1) = matmul(mtx - diag *eigenvalues(k), matmul(V, eigenvectors(:, k)))
        ritz_matrix = matmul(ritz_vector, transpose(ritz_vector))
        xs = diag - ritz_matrix

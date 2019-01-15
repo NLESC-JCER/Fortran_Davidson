@@ -41,6 +41,10 @@ else()
   find_package(BLAS COMPONENTS Fortran REQUIRED)
   set(LINEAR_ALGEBRA ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
   message(STATUS "MKL NOT FOUND! Using default BLAS and LAPACK")
+
+  # Find OpenMP
+  find_package(OpenMP REQUIRED)
+
 endif(MKL_FOUND)
 
 # # search for Doxygen

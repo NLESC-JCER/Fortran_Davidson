@@ -1,6 +1,6 @@
 
 # create binary
-set(SOURCES main.f90 numeric_kinds.f90 davidson.f90)
+set(SOURCES main.f90 numeric_kinds.f90 davidson.f90 benchmark.f90)
 message (STATUS "SOURCES: " ${SOURCES})
 add_executable(main ${SOURCES})
 
@@ -8,8 +8,9 @@ add_executable(main ${SOURCES})
 set( CMAKE_VERBOSE_MAKEFILE on )
 
 target_compile_options(main
-  PRIVATE
-    "-std=f2008"
-  )
+  PUBLIC
+   ${OpenMP_Fortran_FLAGS}
+   "-std=f2008"
+   )
 
 target_link_libraries(main ${LINEAR_ALGEBRA})
