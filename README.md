@@ -58,9 +58,8 @@ cmake --build build
 Dependencies
 ------------
 This packages assumes that you have installed the following packages:
-
-	* A Fortran compiler
-	* [CMake](https://cmake.org/)
-	* [Lapack](http://www.netlib.org/lapack/)
+ * A Fortran compiler
+ * [CMake](https://cmake.org/)
+ * [Lapack](http://www.netlib.org/lapack/)
 	
 Optionally, If an [MKL](https://software.intel.com/en-us/mkl) library is available the package will try to find it.
