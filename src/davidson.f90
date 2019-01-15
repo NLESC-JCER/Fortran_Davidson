@@ -7,14 +7,21 @@ module davidson
   implicit none
 
   !> \private
-  ! private :: concatenate
+  private :: eye, lapack_qr, concatenate
   !> \public
-  public :: eigensolver, eye, lapack_eigensolver, lapack_qr, generate_diagonal_dominant, concatenate
+  public :: eigensolver, generate_diagonal_dominant, lapack_eigensolver, lapack_dgesv
   
   interface
      module function compute_correction(mtx, V, eigenvalues, eigenvectors, dim_sub, method) &
           result(correction)
-       !> compute the correction vector using `method`
+       !> compute the correction vector using a given `method` for the Davidson algorithm
+       !> See correction_methods submodule for the implementations
+       !> \param mtx: Original matrix
+       !> \param V: Basis of the iteration subspace
+       !> \param eigenvalues: of the reduce problem
+       !> \param eigenvectors: of the reduce problem
+       !> \param dim_sub: dimension of the subpace
+       !> \param method: name of the method to compute the correction
        
        integer, intent(in) :: dim_sub
        real(dp), dimension(:), intent(in) :: eigenvalues
@@ -32,8 +39,8 @@ contains
   subroutine eigensolver(mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
        tolerance)
     !> The current implementation uses a general  davidson algorithm, meaning
-    !> that it compute all the eigenvalues simultaneusly. The family
-    !> of Davidson algorithm only differ in the way that the correction
+    !> that it compute all the eigenvalues simultaneusly using a block approach.
+    !> The family of Davidson algorithm only differ in the way that the correction
     !> vector is computed.
     
     !> \param mtx: Matrix to diagonalize
@@ -241,6 +248,23 @@ contains
     
   end subroutine lapack_qr
 
+    subroutine lapack_dgesv(arr, brr)
+    !> Call lapack DGESV subroutine to solve a AX=B Linear system
+    !> \param A: matrix with the coefficients of the linear system
+    !> \param B: Vector with the constant terms
+    !> \returns: Solution vector X (overwriten brr)
+    real(dp), dimension(:, :), intent(inout) :: arr, brr
+
+    ! local variables
+    integer, dimension(size(arr, 1)) :: ipiv
+    integer :: n, info
+
+    n = size(arr, 1)
+    
+    call DGESV(n, size(brr, 2), arr, n, ipiv, brr, n, info)
+    
+  end subroutine lapack_dgesv
+
   pure function eye(m, n)
     !> Create a matrix with ones in the diagonal and zero everywhere else
     !> \param m: number of rows
@@ -355,7 +379,7 @@ contains
     
   end function compute_correction
 
-  function compute_DPR(mtx, V, eigenvalues, eigenvectors, dim_sub) result(correction)
+  pure function compute_DPR(mtx, V, eigenvalues, eigenvectors, dim_sub) result(correction)
     !> compute Diagonal-Preconditioned-Residue (DPR) correction
     integer, intent(in) :: dim_sub
     real(dp), dimension(:), intent(in) :: eigenvalues
@@ -384,16 +408,27 @@ contains
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
     real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
 
-    ! ! local variables
-    ! integer :: k
-    ! real(dp), dimension(size(mtx, 1)) :: rs
+    ! local variables
+    integer :: k, m
+    real(dp), dimension(size(mtx, 1), 1) :: ritz_vector
+    real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: arr, diag, ritz_matrix, xs, ys
+    real(dp), dimension(size(mtx, 1), 1) :: brr
 
-    ! do k=1,dim_sub
-    ! residues = matmul(V, eigenvectors)
-    ! end do
+    m = size(mtx, 1)
+    diag = eye(m, m)
     
-    
+    do k=1,dim_sub
+       ritz_vector(:, 1) = matmul(mtx - diag *eigenvalues(k), matmul(V, eigenvectors(:, k)))
+       ritz_matrix = matmul(ritz_vector, transpose(ritz_vector))
+       xs = diag - ritz_matrix
+       ys = mtx - diag * eigenvalues(k)
+       arr = matmul(xs, matmul(ys, xs))
+       brr = ritz_vector / (eigenvalues(k) - mtx(k, k))
+       call lapack_dgesv(arr, brr)
+       correction(:, k) = brr(:, 1)
+       
+    end do
     
   end function compute_GJD
-  
+    
 end submodule correction_methods
