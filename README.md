@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/NLESC-JCER/Fortran_Davidson.svg?branch=master)](https://travis-ci.org/NLESC-JCER/Fortran_Davidson)
 
 Davidson Eigensolver
 ===================
