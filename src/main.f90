@@ -25,8 +25,8 @@ program main
   end do
   close(3541)
 
-  call eigensolver(mtx, eigenvalues, eigenvectors, 3, "DPR", 100, 1d-8)
+  call eigensolver(mtx, eigenvalues, eigenvectors, 3, "GJD", 100, 1d-8)
   print *, eigenvalues
-  print *, eigenvectors
+  print *, eigenvectors(:,1)
 
 end program main

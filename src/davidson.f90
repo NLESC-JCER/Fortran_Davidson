@@ -26,7 +26,7 @@ module davidson
        integer, intent(in) :: dim_sub
        real(dp), dimension(:), intent(in) :: eigenvalues
        real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
-       character(len=10), optional :: method
+       character(len=*), optional :: method
        real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
        
        
@@ -365,15 +365,16 @@ contains
     integer, intent(in) :: dim_sub
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
-    character(len=10), optional :: method
+    character(len=*), optional :: method
     real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
-    
+
     select case (method)
     case ("DPR")
        correction = compute_DPR(mtx, V, eigenvalues, eigenvectors, dim_sub)
     case ("GJD")
        correction = compute_GJD(mtx, V, eigenvalues, eigenvectors, dim_sub)
     case default
+       print *, "call default"
        correction = compute_DPR(mtx, V, eigenvalues, eigenvectors, dim_sub)
     end select
     
