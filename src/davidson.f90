@@ -6,7 +6,7 @@ module davidson
   implicit none
 
   !> \private
-  private :: eye, lapack_dgesv, lapack_qr, concatenate
+  private :: eye, lapack_solver, lapack_qr, concatenate
   !> \public
   public :: eigensolver, generate_diagonal_dominant, norm, lapack_eigensolver
   
@@ -242,8 +242,8 @@ contains
     
   end subroutine lapack_qr
 
-    subroutine lapack_dgesv(arr, brr)
-    !> Call lapack DGESV subroutine to solve a AX=B Linear system
+    subroutine lapack_solver(arr, brr)
+    !> Call lapack DPOSV subroutine to solve a AX=B Linear system
     !> \param A: matrix with the coefficients of the linear system
     !> \param B: Vector with the constant terms
     !> \returns: Solution vector X (overwriten brr)
@@ -255,9 +255,9 @@ contains
 
     n = size(arr, 1)
     
-    call DGESV(n, size(brr, 2), arr, n, ipiv, brr, n, info)
+    call DPOSV("U", n, size(brr, 2), arr, n,  brr, n, info)
     
-  end subroutine lapack_dgesv
+  end subroutine lapack_solver
 
   pure function eye(m, n)
     !> Create a matrix with ones in the diagonal and zero everywhere else
@@ -418,7 +418,7 @@ contains
        ys = mtx - diag * eigenvalues(k)
        arr = matmul(xs, matmul(ys, xs))
        brr = ritz_vector / (eigenvalues(k) - mtx(k, k))
-       call lapack_dgesv(arr, brr)
+       call lapack_solver(arr, brr)
        correction(:, k) = brr(:, 1)
        
     end do
