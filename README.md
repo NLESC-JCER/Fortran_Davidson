@@ -52,8 +52,17 @@ Installation
 
 To compile execute:
 ```
-cmake -H. -Bbuild
-cmake --build build
+cmake -H. -Bbuild && cmake --build build
+```
+
+To use another compiler (e.g. ifort):
+```
+cmake -H. -Bbuild -D CMAKE_Fortran_COMPILER=ifort && cmake --build build
+```
+
+To Debug compile as:
+```
+cmake -H. -Bbuild  -DCMAKE_BUILD_TYPE=Debug && cmake --build build
 ```
 
 Dependencies

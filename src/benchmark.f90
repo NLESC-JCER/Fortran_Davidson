@@ -56,7 +56,7 @@ contains
     call eigensolver(mtx, eigenvalues, eigenvectors, 3, method, 1000, 1d-8)
     call cpu_time(t2)
     dt = t2 - t1
-    print '(a, e8.3)', "time: ", dt
+    print *, "time: ", dt
 
     
   end subroutine benchmark_method
