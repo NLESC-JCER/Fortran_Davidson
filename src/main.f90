@@ -64,12 +64,11 @@ program main
 
   implicit none
   
-  integer :: i, j
   real(dp), dimension(3) :: eigenvalues_DPR, eigenvalues_GJD
   real(dp), dimension(100, 3) :: eigenvectors_DPR, eigenvectors_GJD
   real(dp), dimension(100, 100) :: mtx
   real(dp) :: test_norm_eigenvalues, test_norm_eigenvectors
-  real(dp), dimension(100) :: test_DPR, test_GJD, arr
+  real(dp), dimension(100) :: test_DPR, test_GJD
   real(dp), dimension(7, 2) :: times
   integer, dimension(7) :: dims
   character(len=20) :: arg
