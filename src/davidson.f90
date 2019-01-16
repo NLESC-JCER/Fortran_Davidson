@@ -163,8 +163,7 @@ contains
     real(dp), dimension(size(mtx, 1), size(mtx, 2)), intent(inout) :: eigenvectors
 
     ! Local variables
-    integer :: i, dim, info, lwork, lowest
-    integer, dimension(size(mtx, 1)) :: indices ! index of the sort eigenvalues
+    integer :: dim, info, lwork
      ! ALL the eigenvalues of the subpace (re, im)
     real(dp), dimension(size(mtx, 1)) :: eigenvalues_work
     real(dp), dimension(:), allocatable :: work ! workspace, see lapack documentation
@@ -249,7 +248,6 @@ contains
     real(dp), dimension(:, :), intent(inout) :: arr, brr
 
     ! local variables
-    integer, dimension(size(arr, 1)) :: ipiv
     integer :: n, info
 
     n = size(arr, 1)
