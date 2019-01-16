@@ -36,7 +36,7 @@ module davidson
 contains
   
   subroutine eigensolver(mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
-       tolerance)
+       tolerance, iters)
     !> The current implementation uses a general  davidson algorithm, meaning
     !> that it compute all the eigenvalues simultaneusly using a block approach.
     !> The family of Davidson algorithm only differ in the way that the correction
@@ -48,7 +48,8 @@ contains
     !> \param lowest: Number of lowest eigenvalues/ritz_vectors to compute
     !> \param method: Method to compute the correction vector. Available
     !> methods are,
-    !> DPR: Diagonal-Preconditioned-Residue
+    !>    DPR: Diagonal-Preconditioned-Residue
+    !>    GJD: Generalized Jacobi Davidson
     !> \param max_iters: Maximum number of iterations
     !> \param tolerance: norm-2 error of the eigenvalues
     !> \return eigenvalues and ritz_vectors of the matrix `mtx`
@@ -62,6 +63,7 @@ contains
     integer, intent(in) :: max_iters
     real(dp), intent(in) :: tolerance
     character(len=*), intent(in) :: method
+    integer, intent(out), optional :: iters
 
     !local variables
     integer :: dim_sub, m, max_dim, k
@@ -157,8 +159,8 @@ contains
 
     ! input/output
     real(dp), dimension(:, :), allocatable, intent(inout) :: mtx
-    real(dp), dimension(:), allocatable, intent(inout) :: eigenvalues
-    real(dp), dimension(:, :), allocatable, intent(inout) :: eigenvectors
+    real(dp), dimension(size(mtx, 1)), intent(inout) :: eigenvalues
+    real(dp), dimension(size(mtx, 1), size(mtx, 2)), intent(inout) :: eigenvectors
 
     ! Local variables
     integer :: i, dim, info, lwork, lowest
@@ -174,7 +176,7 @@ contains
     allocate(work(1))
 
     
-    call DSYEV("V", "L", dim, mtx, dim, eigenvalues_work, work, -1, info)
+    call DSYEV("V", "U", dim, mtx, dim, eigenvalues_work, work, -1, info)
 
     ! Allocate memory for the workspace
     lwork = max(1, int(work(1)))
@@ -182,14 +184,14 @@ contains
     allocate(work(lwork))
 
     ! Compute Eigenvalues
-    call DSYEV("V", "L", dim, mtx, dim, eigenvalues_work, work, lwork, info)
+    call DSYEV("V", "U", dim, mtx, dim, eigenvalues_work, work, lwork, info)
 
     ! Sort the eigenvalues and eigenvectors of the basis
-    eigenvalues = eigenvalues_work 
-    call move_alloc (mtx, eigenvectors)
+    eigenvalues = eigenvalues_work
+    eigenvectors = mtx
     
     ! release memory
-    deallocate(work)
+    deallocate(work, mtx)
     
   end subroutine lapack_eigensolver
 
