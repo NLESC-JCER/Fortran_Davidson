@@ -92,7 +92,6 @@ program main
   ! RUn benchmark
   call get_command_argument(1, arg)
   if (arg == "benchmark") then
-     print *,
      print *, "Running Benchmark! "
      dims = [10, 50, 100, 500, 1000, 5000, 10 ** 4] !, 10 ** 5, 5 * 10 ** 5, 10 ** 6, 5 * 10 ** 6, 10 ** 7]
      call compute_benchmark(dims, 3, times)
