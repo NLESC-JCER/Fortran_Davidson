@@ -48,35 +48,48 @@ contains
     character(len=*), intent(in) :: path_file
     real(dp), dimension(:) :: vector
 
-    open(unit=314, file=path_file, status="NEW")
+    open(unit=314, file=path_file, status="REPLACE")
     write(314, *) vector
     close(314)
     
   end subroutine write_vector
+
+  function cast_to_double(vector) result(rs)
+    !> convert an array of int into double
+    integer, dimension(:), intent(in) :: vector
+    real(dp), dimension(size(vector))  :: rs
+    integer :: i
+    do i=1,size(vector)
+       rs(i) = real(vector(i))
+    end do
+
+  end function cast_to_double
   
 end module test_utils
 
 program main
   use numeric_kinds, only: dp
   use davidson, only: eigensolver, norm, lapack_eigensolver
-  use test_utils, only: diagonal , read_matrix, write_vector
+  use test_utils, only: diagonal , read_matrix, write_vector, cast_to_double
   use benchmark, only: compute_benchmark
 
   implicit none
-  
+
   real(dp), dimension(3) :: eigenvalues_DPR, eigenvalues_GJD
   real(dp), dimension(100, 3) :: eigenvectors_DPR, eigenvectors_GJD
   real(dp), dimension(100, 100) :: mtx
-  real(dp) :: test_norm_eigenvalues, test_norm_eigenvectors
+  real(dp) :: test_norm_eigenvalues, sparsity
   real(dp), dimension(100) :: test_DPR, test_GJD
-  real(dp), dimension(7, 2) :: times
-  integer, dimension(7) :: dims
-  character(len=20) :: arg
+  real(dp), dimension(6, 2) :: times
+  integer, dimension(6, 2) :: iters
+  integer, dimension(6) :: dims
+  integer :: iter_i
+  character(len=20) :: arg1
 
   mtx = read_matrix("tests/matrix.txt", 100)
 
-  call eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 3, "GJD", 100, 1d-8)
-  call eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 100, 1d-8)
+  call eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 3, "GJD", 100, 1d-8, iter_i)
+  call eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 100, 1d-8, iter_i)
 
   print *, "Test 1"
   test_norm_eigenvalues = norm(eigenvalues_GJD - eigenvalues_DPR)
@@ -90,14 +103,20 @@ program main
   print *, "GJD: ", norm(test_GJD(:3) - 1) < 1e-8
 
   ! RUn benchmark
-  call get_command_argument(1, arg)
-  if (arg == "benchmark") then
+  call get_command_argument(1, arg1)
+  if (arg1 == "benchmark") then
      print *, "Running Benchmark! "
-     dims = [10, 50, 100, 500, 1000, 5000, 10 ** 4]
-     call compute_benchmark(dims, 3, times)
+     dims = [10, 50, 100, 500, 1000, 2500] !, 5000, 7500, 10 ** 4]
+     sparsity = 1d-3
+     call compute_benchmark(dims, 3, sparsity, times, iters)
      print *, times(:, 1)
+     print *, iters(:, 1)
   end if
   
   call write_vector("times_DPR.txt", times(:, 1))
+  call write_vector("times_GJD.txt", times(:, 2))
+
+  call write_vector("cycles_DPR.txt", cast_to_double(iters(:, 1)))
+  call write_vector("cycles_GJD.txt", cast_to_double(iters(:, 2)))
   
 end program main
