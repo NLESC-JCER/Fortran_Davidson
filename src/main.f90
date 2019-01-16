@@ -58,11 +58,12 @@ end module test_utils
 
 program main
   use numeric_kinds, only: dp
-  use davidson, only: eigensolver, norm
+  use davidson, only: eigensolver, norm, lapack_eigensolver
   use test_utils, only: diagonal , read_matrix, write_vector
   use benchmark, only: compute_benchmark
- 
+
   implicit none
+  
   integer :: i, j
   real(dp), dimension(3) :: eigenvalues_DPR, eigenvalues_GJD
   real(dp), dimension(100, 3) :: eigenvectors_DPR, eigenvectors_GJD
@@ -98,6 +99,6 @@ program main
      print *, times(:, 1)
   end if
   
-  ! call write_vector("eigenvalues_GJD.txt", eigenvalues_DPR)
+  call write_vector("times_DPR.txt", times(:, 1))
   
 end program main

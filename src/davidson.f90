@@ -6,9 +6,9 @@ module davidson
   implicit none
 
   !> \private
-  private :: eye, lapack_dgesv, lapack_eigensolver, lapack_qr, concatenate
+  private :: eye, lapack_dgesv, lapack_qr, concatenate
   !> \public
-  public :: eigensolver, generate_diagonal_dominant, norm
+  public :: eigensolver, generate_diagonal_dominant, norm, lapack_eigensolver
   
   interface
      module function compute_correction(mtx, V, eigenvalues, eigenvectors, dim_sub, method) &
@@ -144,29 +144,27 @@ contains
        print *, "Warning: Algorithm did not converge!!"
     end if
 
-    deallocate(eigenvalues_sub, eigenvectors_sub, projected, V)
+    deallocate(eigenvalues_sub, eigenvectors_sub, V)
     
   end subroutine eigensolver
 
   subroutine lapack_eigensolver(mtx, eigenvalues, eigenvectors)
-    !> Call the DGEEV subroutine lapack to compute ALL the eigenvalues
+    !> Call the DSYEV subroutine lapack to compute ALL the eigenvalues
     !> and corresponding eigenvectors of mtx
     !> \param mtx: Matrix to diaogonalize
     !> \param eigenvalues: lowest eigenvalues
     !> \param eigenvectors: corresponding eigenvectors
 
     ! input/output
-    real(dp), dimension(:, :), intent(in) :: mtx
-    real(dp), dimension(:), intent(inout) :: eigenvalues
-    real(dp), dimension(:, :), intent(inout) :: eigenvectors
+    real(dp), dimension(:, :), allocatable, intent(inout) :: mtx
+    real(dp), dimension(:), allocatable, intent(inout) :: eigenvalues
+    real(dp), dimension(:, :), allocatable, intent(inout) :: eigenvectors
 
     ! Local variables
     integer :: i, dim, info, lwork, lowest
     integer, dimension(size(mtx, 1)) :: indices ! index of the sort eigenvalues
      ! ALL the eigenvalues of the subpace (re, im)
-    real(dp), dimension(size(mtx, 1)) :: eigenvalues_work_re, eigenvalues_work_im
-    real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: eigenvectors_work ! All the eigenvectors
-    real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: vl ! check dgeev documentation
+    real(dp), dimension(size(mtx, 1)) :: eigenvalues_work
     real(dp), dimension(:), allocatable :: work ! workspace, see lapack documentation
     
     ! ! dimension of the guess space
@@ -174,8 +172,9 @@ contains
     
     ! Query size of the optimal workspace
     allocate(work(1))
-    call DGEEV("N", "V", dim, mtx, dim, eigenvalues_work_re, eigenvalues_work_im, vl, 1, &
-         eigenvectors_work, dim, work, -1, info)
+
+    
+    call DSYEV("V", "L", dim, mtx, dim, eigenvalues_work, work, -1, info)
 
     ! Allocate memory for the workspace
     lwork = max(1, int(work(1)))
@@ -183,15 +182,11 @@ contains
     allocate(work(lwork))
 
     ! Compute Eigenvalues
-    call DGEEV("N", "V", dim, mtx, dim, eigenvalues_work_re, eigenvalues_work_im, vl, 1, &
-         eigenvectors_work, dim, work, lwork, info)
+    call DSYEV("V", "L", dim, mtx, dim, eigenvalues_work, work, lwork, info)
 
-    ! Return the indices of the  eigenvalues sorted
-    indices = argsort(eigenvalues_work_re)
-    
     ! Sort the eigenvalues and eigenvectors of the basis
-    eigenvalues = eigenvalues_work_re(indices)
-    eigenvectors = eigenvectors_work(:, indices)
+    eigenvalues = eigenvalues_work 
+    call move_alloc (mtx, eigenvectors)
     
     ! release memory
     deallocate(work)
@@ -321,42 +316,6 @@ contains
     arr(:, dim_cols + 1:) = brr
 
   end subroutine concatenate
-
-  pure function argsort(a) result(b)
-    !> Taken from: https://github.com/certik/fortran-utils
-    !> Returns the indices that would sort an array.
-    !> \param a: Array to compute sorted indices
-    
-    ! Arguments
-    real(dp), intent(in):: a(:)   ! array of numbers
-    integer :: b(size(a))         ! indices into the array 'a' that sort it
-    !
-    ! Example
-    ! -------
-    !
-    ! rargsort([4.1_dp, 2.1_dp, 2.05_dp, -1.5_dp, 4.2_dp]) ! Returns [4, 3, 2, 1, 5]
-    
-    integer :: N                           ! number of numbers/vectors
-    integer :: i,imin                      ! indices: i, i of smallest
-    integer :: temp1                       ! temporary
-    real(dp) :: temp2
-    real(dp) :: a2(size(a))
-    a2 = a
-    N=size(a)
-    do i = 1, N
-       b(i) = i
-    end do
-    do i = 1, N-1
-       ! find ith smallest in 'a'
-       imin = minloc(a2(i:),1) + i - 1
-    ! swap to position i in 'a' and 'b', if not already there
-       if (imin /= i) then
-          temp2 = a2(i); a2(i) = a2(imin); a2(imin) = temp2
-          temp1 = b(i); b(i) = b(imin); b(imin) = temp1
-       end if
-    end do
-  end function argsort
-  
   
   function generate_diagonal_dominant(m, sparsity) result(arr)
     !> Generate a diagonal dominant square matrix of dimension m
