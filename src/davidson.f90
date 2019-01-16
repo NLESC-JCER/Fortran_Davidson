@@ -362,7 +362,7 @@ contains
     !> Generate a diagonal dominant square matrix of dimension m
       
     integer, intent(in) :: m ! size of the square matrix
-    integer(dp) :: i, j
+    integer :: i, j
     real(dp) :: sparsity 
     real(dp), dimension(m, m) :: arr
     call random_number(arr)
