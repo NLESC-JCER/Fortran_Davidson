@@ -202,7 +202,7 @@ contains
     !> \return orthogonal basis    
     real(dp), dimension(:, :), intent(inout) :: basis
     real(dp), dimension(:), allocatable :: work ! workspace, see lapack documentation
-    real(dp), dimension(:), allocatable :: tau ! see DGEQRF documentation
+    real(dp), dimension(size(basis, 2)) :: tau ! see DGEQRF documentation
     integer :: info, lwork, m, n
 
     ! Matrix shape
@@ -220,7 +220,6 @@ contains
     allocate(work(lwork))
 
     ! 1.3 Call QR factorization
-    allocate(tau(min(m, n)))
     call DGEQRF(m, n, basis, max(1, m), tau, work, lwork, info)
     deallocate(work)
     
@@ -238,7 +237,7 @@ contains
     call DORGQR(m, n, min(m, n), basis, max(1, m), tau, work, lwork, info)
     
     ! release memory
-    deallocate(work, tau)
+    deallocate(work)
     
   end subroutine lapack_qr
 
