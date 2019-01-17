@@ -9,6 +9,8 @@ project(davidson_eigensolver)
 
 set( CMAKE_VERBOSE_MAKEFILE on )
 
+set(CM)
+
 # Compile with optimization by default
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
