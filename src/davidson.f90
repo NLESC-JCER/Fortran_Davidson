@@ -96,9 +96,8 @@ contains
 
        ! 3. compute the eigenvalues and their corresponding ritz_vectors
        ! for the projected matrix using lapack
-       if (allocated(eigenvectors_sub)) then
-          deallocate(eigenvectors_sub)
-       end if
+       call check_deallocate_matrix(eigenvectors_sub)
+
        if (allocated(eigenvalues_sub)) then
           deallocate(eigenvalues_sub)
        end if
