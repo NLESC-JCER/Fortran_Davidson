@@ -52,6 +52,8 @@ contains
     !>    GJD: Generalized Jacobi Davidson
     !> \param max_iters: Maximum number of iterations
     !> \param tolerance: norm-2 error of the eigenvalues
+    !> \param method: Method to compute the correction vectors
+    !> \param iters: Number of iterations until convergence
     !> \return eigenvalues and ritz_vectors of the matrix `mtx`
 
     implicit none
@@ -159,7 +161,8 @@ contains
     !> \param mtx: Matrix to diaogonalize
     !> \param eigenvalues: lowest eigenvalues
     !> \param eigenvectors: corresponding eigenvectors
-
+    !> \return eigenvalues/eigenvectors
+    
     ! input/output
     implicit none
     real(dp), dimension(:, :), allocatable, intent(inout) :: mtx
@@ -248,8 +251,8 @@ contains
   
   subroutine lapack_solver(arr, brr)
     !> Call lapack DPOSV subroutine to solve a AX=B Linear system
-    !> \param A: matrix with the coefficients of the linear system
-    !> \param B: Vector with the constant terms
+    !> \param arr: matrix with the coefficients of the linear system
+    !> \param brr: Vector with the constant terms
     !> \returns: Solution vector X (overwriten brr)
 
     implicit none
@@ -272,6 +275,7 @@ contains
     !> \param transB: 'T' transpose B, 'N' do not tranpose
     !> \param arr: first matrix to multiply
     !> \param brr: second matrix
+    !> \param alpha: optional scalar number   
     !> \return matrix multiplication
 
     implicit none
@@ -395,7 +399,7 @@ contains
     !> Concatenate two matrices
     !> \param arr: first array
     !> \param brr: second array
-    !> \return arr concatenate brr
+    !> \return arr concatenate brr (overwrites arr)
 
     real(dp), dimension(:, :), intent(inout), allocatable :: arr
     real(dp), dimension(:, :), intent(in) :: brr
@@ -422,6 +426,8 @@ contains
   
   function generate_diagonal_dominant(m, sparsity) result(arr)
     !> Generate a diagonal dominant square matrix of dimension m
+    !> \param m: dimension of the matrix
+    !> \param sparsity: magnitude order of the off-diagonal values
       
     integer, intent(in) :: m ! size of the square matrix
     integer :: i, j
@@ -448,7 +454,7 @@ end module davidson
 
 submodule (davidson) correction_methods
   !> submodule containing the implementations of different kind
-  !> of correction vectors for the Davidson's diagonalization algorithm
+  !> algorithms to compute the correction vectors for the Davidson's diagonalization
 
   implicit none
   
@@ -456,6 +462,7 @@ contains
 
   module function compute_correction(mtx, V, eigenvalues, eigenvectors, dim_sub, method) &
        result(correction)
+    !> see interface in davidson module
     integer, intent(in) :: dim_sub
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors

@@ -17,7 +17,7 @@ if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
 
 elseif (CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
   list(APPEND Fortran_FLAGS_DEBUG "-check all" "-fpe0 " "-warn" "-traceback " "-debug extended")
-endif()  
+endif()
   
 target_compile_options(main
   PRIVATE
