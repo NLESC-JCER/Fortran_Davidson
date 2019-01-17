@@ -25,7 +25,7 @@ module davidson
        integer, intent(in) :: dim_sub
        real(dp), dimension(:), intent(in) :: eigenvalues
        real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
-       character(len=*), optional :: method
+       character(len=*), optional, intent(in) :: method
        real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
        
        
@@ -54,7 +54,7 @@ contains
     !> \param tolerance: norm-2 error of the eigenvalues
     !> \return eigenvalues and ritz_vectors of the matrix `mtx`
 
-
+    implicit none
     ! input/output variable
     integer, intent(in) :: lowest
     real(dp), dimension(:, :), intent(in) :: mtx
@@ -63,10 +63,10 @@ contains
     integer, intent(in) :: max_iters
     real(dp), intent(in) :: tolerance
     character(len=*), intent(in) :: method
-    integer, intent(out), optional :: iters
-
+    integer, intent(out) :: iters
+    
     !local variables
-    integer :: dim_sub, m, max_dim
+    integer :: i, k, m, n, dim_sub, max_dim
     real(dp) :: residue
     
     ! Basis of subspace of approximants
@@ -77,7 +77,7 @@ contains
     real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, projected, V
 
     ! Iteration subpsace dimension
-    dim_sub = lowest + lowest / 2
+    dim_sub = lowest + (lowest / 2)
 
     ! maximum dimension of the basis for the subspace
     max_dim = size(mtx, 2) / 2
@@ -87,10 +87,11 @@ contains
     V = eye(size(mtx, 1), dim_sub) ! Initial orthonormal basis
 
     ! ! Outer loop block Davidson schema
-    outer_loop: do m=1, (max_iters / dim_sub)
+    outer_loop: do i=1, (max_iters / dim_sub)
        
        ! 2. Generate subpace matrix problem by projecting into V
        projected = matmul(transpose(V), matmul(mtx, V))
+       ! projected = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
 
        ! 3. compute the eigenvalues and their corresponding ritz_vectors
        ! for the projected matrix using lapack
@@ -110,9 +111,10 @@ contains
        ! 4. Check for convergence
        residue = norm(guess_eigenvalues - eigenvalues_sub(:lowest))
        if (residue < tolerance) then
+          iters = i
           exit
        end if
-       
+
        ! 5. Add the correction vectors to the current basis
        if (size(V, 2) <= max_dim) then
           ! append correction to the current basis
@@ -121,7 +123,7 @@ contains
           call concatenate(V, correction) 
        else
           ! 6. Otherwise reduce the basis of the subspace to the current correction
-          V  = matmul(V, eigenvectors_sub(:, :lowest))
+          V  = matmul(V, eigenvectors_sub(:, :dim_sub))
        end if
 
        ! 7. Orthogonalize basis
@@ -129,22 +131,24 @@ contains
 
        ! 8. Update guess
        guess_eigenvalues = eigenvalues_sub(:lowest)
-       
+
     end do outer_loop
 
     ! Free memory
+    ! call check_deallocate_matrix(correction)
     if (allocated(correction)) then
        deallocate(correction)
     end if
+
+    if (i > max_iters / dim_sub) then
+       print *, "Warning: Algorithm did not converge!!"
+    end if
+
     
     ! Select the lowest eigenvalues and their corresponding ritz_vectors
     ! They are sort in increasing order
     eigenvalues = eigenvalues_sub(:lowest)
     ritz_vectors = matmul(V, eigenvectors_sub(:, :lowest))
-    
-    if (m > max_iters / dim_sub) then
-       print *, "Warning: Algorithm did not converge!!"
-    end if
 
     deallocate(eigenvalues_sub, eigenvectors_sub, V)
     
@@ -158,6 +162,7 @@ contains
     !> \param eigenvectors: corresponding eigenvectors
 
     ! input/output
+    implicit none
     real(dp), dimension(:, :), allocatable, intent(inout) :: mtx
     real(dp), dimension(size(mtx, 1)), intent(inout) :: eigenvalues
     real(dp), dimension(size(mtx, 1), size(mtx, 2)), intent(inout) :: eigenvectors
@@ -199,6 +204,8 @@ contains
     !> Orthoghonalize the basis using the QR factorization
     !> \param basis
     !> \return orthogonal basis    
+
+    implicit none
     real(dp), dimension(:, :), intent(inout) :: basis
     real(dp), dimension(:), allocatable :: work ! workspace, see lapack documentation
     real(dp), dimension(size(basis, 2)) :: tau ! see DGEQRF documentation
@@ -239,23 +246,122 @@ contains
     deallocate(work)
     
   end subroutine lapack_qr
-
-    subroutine lapack_solver(arr, brr)
+  
+  subroutine lapack_solver(arr, brr)
     !> Call lapack DPOSV subroutine to solve a AX=B Linear system
     !> \param A: matrix with the coefficients of the linear system
     !> \param B: Vector with the constant terms
     !> \returns: Solution vector X (overwriten brr)
-    real(dp), dimension(:, :), intent(inout) :: arr, brr
 
+    implicit none
+    
+    real(dp), dimension(:, :), intent(inout) :: arr, brr
+    
     ! local variables
     integer :: n, info
-
+    
     n = size(arr, 1)
     
     call DPOSV("U", n, size(brr, 2), arr, n,  brr, n, info)
     
   end subroutine lapack_solver
 
+    function lapack_matmul(transA, transB, arr, brr, alpha) result (mtx)
+    !> perform the matrix multiplication alpha * arr ^ (transA) * brr ^ (transB)
+    !> see Lapack DGEMM for further details
+    !> \param transA: 'T' transpose A, 'N' do not tranpose
+    !> \param transB: 'T' transpose B, 'N' do not tranpose
+    !> \param arr: first matrix to multiply
+    !> \param brr: second matrix
+    !> \return matrix multiplication
+
+    implicit none
+    
+    character(len=1), intent(in) :: transA, transB
+    real(dp), dimension(:, :), intent(in) :: arr, brr
+    real(dp), optional, intent(in) :: alpha 
+    real(dp), dimension(:, :), allocatable :: mtx
+
+    ! local variables
+    real(dp) :: x
+    integer :: m, n, k
+    x = 1
+
+    ! check optional variable
+    if (present(alpha)) x=alpha
+    
+    if (transA == 'T') then
+       k = size(arr, 1)
+       m = size(arr, 2)
+    else
+       k = size(arr, 2)
+       m = size(arr, 1)
+    end if
+    
+    if (transB == 'T') then
+       n = size(brr, 1)
+    else
+       n = size(brr, 2)
+    end if
+
+    ! resulting array
+    allocate(mtx(m, n))
+    
+    call DGEMM(transA, transB, m, n, k, x, arr, k, brr, k, 0, mtx, m)
+
+  end function lapack_matmul
+
+
+  function lapack_matrix_vector(transA, mtx, vector, alpha) result(rs)
+    !> perform the Matrix vector multiplication alpha * mtx ^ (transA) * vector
+    !> see DGEMV for details
+    !> \param transA: 'T' transpose A; 'N' do not transpose
+    !> \param mtx: matrix to multiply
+    !> \param vector: vector to multiply
+    !> \param alpha: optional scalar value
+    !> \return resulting vector
+
+    implicit none
+    
+    character(len=1), intent(in) :: transA
+    real(dp), dimension(:, :), intent(in) :: mtx
+    real(dp), dimension(:), intent(in) :: vector
+    real(dp), optional, intent(in) :: alpha 
+    real(dp), dimension(:), allocatable :: rs
+
+    ! local variable
+    integer :: m, n
+    real(dp) :: x
+    x = 1
+    
+    ! check optional variable
+    if (present(alpha)) x=alpha
+    
+    ! number of row of mtx ^ transA
+    if (transA == 'T') then
+       m = size(mtx, 2)
+    else
+       m = size(mtx, 1)
+    end if
+
+    ! columns
+    n = size(vector)
+    allocate(rs(m))
+    
+    call DGEMV(transA, m, n, x, mtx, m, vector, 1, 0.d0, rs, 1)
+
+  end function lapack_matrix_vector
+
+  subroutine check_deallocate_matrix(mtx)
+    !> deallocate a matrix if allocated
+    real(dp), dimension(:, :), allocatable, intent(inout) ::  mtx
+    
+    if (allocated(mtx)) then
+       deallocate(mtx)
+    end if
+
+  end subroutine check_deallocate_matrix
+    
   pure function eye(m, n)
     !> Create a matrix with ones in the diagonal and zero everywhere else
     !> \param m: number of rows
@@ -355,21 +461,26 @@ contains
     integer, intent(in) :: dim_sub
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
-    character(len=*), optional :: method
+    character(len=*), optional,intent(in) :: method
+
+    ! local variables
+    character(len=10) :: opt 
     real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
 
+    !check optional arguments
+    opt="DPR"
+    if (present(method)) opt=trim(method)
+    
     select case (method)
     case ("DPR")
        correction = compute_DPR(mtx, V, eigenvalues, eigenvectors, dim_sub)
     case ("GJD")
        correction = compute_GJD(mtx, V, eigenvalues, eigenvectors, dim_sub)
-    case default
-       correction = compute_DPR(mtx, V, eigenvalues, eigenvectors, dim_sub)
     end select
     
   end function compute_correction
 
-  pure function compute_DPR(mtx, V, eigenvalues, eigenvectors, dim_sub) result(correction)
+  function compute_DPR(mtx, V, eigenvalues, eigenvectors, dim_sub) result(correction)
     !> compute Diagonal-Preconditioned-Residue (DPR) correction
     integer, intent(in) :: dim_sub
     real(dp), dimension(:), intent(in) :: eigenvalues
@@ -377,16 +488,22 @@ contains
     real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
 
     ! local variables
-    integer :: k, m
-    real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: diag
+    integer :: j, k, m, n
+    real(dp) :: x
+    real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: diag, arr
+    real(dp), dimension(size(mtx, 1)) :: brr
 
     ! shape of matrix
     m = size(mtx, 1)
     diag = eye(m, m)
     
     ! correction = 0
-    do  k=1, dim_sub
-       correction(:, k) =  matmul(mtx - diag *eigenvalues(k), matmul(V, eigenvectors(:, k))) / (eigenvalues(k) - mtx(k, k))
+    do  j=1, dim_sub
+       correction(:, j) =  matmul(mtx - diag *eigenvalues(j), matmul(V, eigenvectors(:, j))) / (eigenvalues(j) - mtx(j, j))
+       ! x = 1 / (eigenvalues(k) - mtx(k, k))
+       ! arr = mtx - diag *eigenvalues(j)
+       ! brr = lapack_matrix_vector('N', V, eigenvectors(:, j))
+       ! correction(:, j) = lapack_matrix_vector('N', arr, brr, x)
     end do
     
   end function compute_DPR

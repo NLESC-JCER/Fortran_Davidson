@@ -30,17 +30,20 @@ contains
 
     do i=1, size(dims)
 
+       
        call benchmark_method(mtx, eigenvalues, eigenvectors, "DPR", dims(i), lowest, sparsity, dt, iter_i)
        print *, "cycles: ", iter_i
        iters(i, 1) = iter_i
        times(i, 1) = dt
+       
        call benchmark_method(mtx, eigenvalues, eigenvectors, "GJD", dims(i), lowest, sparsity, dt, iter_i)
        print *, "cycles: ", iter_i
        iters(i, 2) = iter_i
        times(i, 2) = dt
+       
     end do
 
-    deallocate(mtx)
+    call free_space(mtx, eigenvalues, eigenvectors)
     
   end subroutine compute_benchmark
 
