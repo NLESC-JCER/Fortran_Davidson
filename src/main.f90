@@ -80,9 +80,9 @@ program main
   real(dp), dimension(50, 50) :: mtx
   real(dp) :: test_norm_eigenvalues, sparsity
   real(dp), dimension(50) :: test_DPR, test_GJD
-  real(dp), dimension(6, 2) :: times
-  integer, dimension(6, 2) :: iters
-  integer, dimension(6) :: dims
+  real(dp), dimension(5, 2) :: times
+  integer, dimension(5, 2) :: iters
+  integer, dimension(5) :: dims
   integer :: iter_i
   character(len=20) :: arg1
 
@@ -111,7 +111,7 @@ program main
   call get_command_argument(1, arg1)
   if (arg1 == "benchmark") then
      print *, "Running Benchmark! "
-     dims = [10, 50, 100, 500, 1000, 2500] !, 5000, 7500, 10 ** 4]
+     dims = [10, 50, 100, 500, 1000] !, 5000, 7500, 10 ** 4]
      sparsity = 1d-4
      call compute_benchmark(dims, 3, sparsity, times, iters)
   end if
