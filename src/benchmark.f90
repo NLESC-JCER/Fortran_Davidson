@@ -28,9 +28,7 @@ contains
     real(dp) ::  dt
 
 
-    do i=1, size(dims)
-
-       
+    do i=1, size(dims)       
        call benchmark_method(mtx, eigenvalues, eigenvectors, "DPR", dims(i), lowest, sparsity, dt, iter_i)
        print *, "cycles: ", iter_i
        iters(i, 1) = iter_i

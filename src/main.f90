@@ -104,8 +104,8 @@ program main
   print *, "DPR: ", norm(test_DPR(:3) - 1) < 1e-6
   print *, "GJD: ", norm(test_GJD(:3) - 1) < 1e-6
 
-  print *, eigenvectors_DPR(:3, 1)
-  print *, eigenvectors_GJD(:3, 1)
+  print *, eigenvalues_DPR(:3)
+  print *, eigenvalues_GJD(:3)
   
   ! RUn benchmark
   call get_command_argument(1, arg1)
@@ -114,8 +114,6 @@ program main
      dims = [10, 50, 100, 500, 1000, 2500] !, 5000, 7500, 10 ** 4]
      sparsity = 1d-4
      call compute_benchmark(dims, 3, sparsity, times, iters)
-     print *, times(:, 1)
-     print *, iters(:, 1)
   end if
   
   call write_vector("times_DPR.txt", times(:, 1))
