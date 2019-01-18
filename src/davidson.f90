@@ -212,7 +212,7 @@ contains
     !> The equality A=Q1*R1 can be treated as every column of A is a linear
     !> combination of Q1 columns, i.e. they span the same linear space.
     !> In other words, columns of Q1 is the result of ortogonalization of columns A.
-    !> DGEQRF does not not compute Q directly, DORGQR must be call subsquently.
+    !> DGEQRF does not not compute Q directly, DORGQR must be call subsequently.
     
     !> \param basis
     !> \return orthogonal basis    
@@ -230,7 +230,7 @@ contains
     ! 1. Call the QR decomposition
     ! 1.1 Query size of the workspace (Check lapack documentation)
     allocate(work(1))
-    call DGEQRF(m, n, basis, max(1, m), tau, work, -1, info)
+    call DGEQRF(m, n, basis, m, tau, work, -1, info)
 
     ! 1.2 Allocate memory for the workspace
     lwork = max(1, int(work(1)))
