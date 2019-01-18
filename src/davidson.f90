@@ -68,7 +68,7 @@ contains
     integer, intent(out) :: iters
     
     !local variables
-    integer :: i, k, m, n, dim_sub, max_dim
+    integer :: i, n, dim_sub, max_dim
     real(dp) :: residue
     
     ! Basis of subspace of approximants
@@ -76,7 +76,7 @@ contains
 
     ! Working arrays
     real(dp), dimension(:), allocatable :: eigenvalues_sub
-    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, projected, V, w1, w2
+    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, projected, V
 
     ! Iteration subpsace dimension
     dim_sub = lowest + (lowest / 2)

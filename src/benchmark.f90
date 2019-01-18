@@ -22,7 +22,7 @@ contains
     real(dp) :: sparsity
     
     ! local variable
-    integer :: i, m, iter_i
+    integer :: i, iter_i
     real(dp), dimension(:), allocatable :: eigenvalues
     real(dp), dimension(:, :), allocatable :: mtx, eigenvectors
     real(dp) ::  dt
