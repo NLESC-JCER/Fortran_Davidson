@@ -68,7 +68,7 @@ contains
     integer, intent(out) :: iters
     
     !local variables
-    integer :: i, n, dim_sub, max_dim
+    integer :: i, dim_sub, max_dim
     real(dp) :: residue
     
     ! Basis of subspace of approximants
