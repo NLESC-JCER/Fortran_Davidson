@@ -7,9 +7,8 @@ enable_language(Fortran)
 # Project's name
 project(davidson_eigensolver)
 
+include(CTest)
 set( CMAKE_VERBOSE_MAKEFILE on )
-
-set(CM)
 
 # Compile with optimization by default
 if(NOT CMAKE_BUILD_TYPE)
@@ -48,6 +47,10 @@ else()
   find_package(OpenMP REQUIRED)
 
 endif(MKL_FOUND)
+
+# Testing
+option(ENABLE_TEST "enable test set" off)
+
 
 # # search for Doxygen
 # find_package(DOXYGEN COMPONENTS REQUIRED)

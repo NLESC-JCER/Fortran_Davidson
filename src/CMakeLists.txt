@@ -27,3 +27,9 @@ target_compile_options(main
    )
 
 target_link_libraries(main ${LINEAR_ALGEBRA})
+
+if(ENABLE_TEST)
+  MESSAGE(STATUS "enable test")
+  enable_testing()
+  add_subdirectory(tests)
+endif(ENABLE_TEST)

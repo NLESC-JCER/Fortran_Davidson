@@ -91,7 +91,7 @@ program main
 
   call eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 3, "GJD", 100, 1d-8, iter_i)
   call eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 100, 1d-8, iter_i)
-
+  
   print *, "Test 1"
   test_norm_eigenvalues = norm(eigenvalues_GJD - eigenvalues_DPR)
   print *, test_norm_eigenvalues
