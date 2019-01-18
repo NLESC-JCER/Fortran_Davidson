@@ -202,7 +202,18 @@ contains
 
 
   subroutine lapack_qr(basis)
-    !> Orthoghonalize the basis using the QR factorization
+    !> Orthoghonalize the basis using the QR factorization.
+    !> QR factorization of the M-by-N (M>N) matrx A=Q*R in the form where
+    !> Q is square M-by-M matrix and R is an upper triangular M-by-N matrix.
+    !> The equality A=Q*R can be re-written also as a product Q1*R1 where Q1
+    !> is a rectangular M-by-N submatrix of the matrix Q and R1 is M-by-M
+    !> submatrix of the R. Let us note that columns of Q1 are orthonormal
+    !> (they are orthogonal to each other and have norms equal to 1).
+    !> The equality A=Q1*R1 can be treated as every column of A is a linear
+    !> combination of Q1 columns, i.e. they span the same linear space.
+    !> In other words, columns of Q1 is the result of ortogonalization of columns A.
+    !> DGEQRF does not not compute Q directly, DORGQR must be call subsquently.
+    
     !> \param basis
     !> \return orthogonal basis    
 
