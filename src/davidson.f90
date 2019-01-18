@@ -227,13 +227,13 @@ contains
     allocate(work(lwork))
 
     ! 1.3 Call QR factorization
-    call DGEQRF(m, n, basis, max(1, m), tau, work, lwork, info)
+    call DGEQRF(m, n, basis, m, tau, work, lwork, info)
     deallocate(work)
     
     ! 2. Generates an orthonormal matrix
     ! 2.1 Query size of the workspace (Check lapack documentation)
     allocate(work(1))
-    call DORGQR(m, n, min(m, n), basis, max(1, m), tau, work, -1, info)
+    call DORGQR(m, n, min(m, n), basis, m, tau, work, -1, info)
 
     ! 2.2 Allocate memory fo the workspace
     lwork = max(1, int(work(1)))
@@ -241,7 +241,7 @@ contains
     allocate(work(lwork))
 
     ! 2.3 compute the matrix Q
-    call DORGQR(m, n, min(m, n), basis, max(1, m), tau, work, lwork, info)
+    call DORGQR(m, n, min(m, n), basis, m, tau, work, lwork, info)
     
     ! release memory
     deallocate(work)
