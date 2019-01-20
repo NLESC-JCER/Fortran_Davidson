@@ -43,7 +43,6 @@ add_test(
 if(${_numpy_status} EQUAL 0)
   add_test(
     NAME numpy_test
-    COMMAND $<TARGET_FILE:test_numpy>
-    # COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_davidson.py --executable $<TARGET_FILE:test_numpy>
+    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_davidson.py -i $<TARGET_FILE:test_numpy>
     )
 endif()  

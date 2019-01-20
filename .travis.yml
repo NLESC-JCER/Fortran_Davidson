@@ -1,6 +1,8 @@
 sudo: require
-language: generic
+language: python
 
+python:
+  - 3.6
 addons:
   apt:
     sources:
