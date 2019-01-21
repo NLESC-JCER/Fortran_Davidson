@@ -79,7 +79,7 @@ program main
   real(dp), dimension(50, 3) :: eigenvectors_DPR, eigenvectors_GJD
   real(dp), dimension(50, 50) :: mtx
   real(dp) :: test_norm_eigenvalues, sparsity
-  real(dp), dimension(50) :: test_DPR, test_GJD, xs
+  real(dp), dimension(50) :: xs
   real(dp), dimension(5, 2) :: times
   integer, dimension(5, 2) :: iters
   integer, dimension(5) :: dims

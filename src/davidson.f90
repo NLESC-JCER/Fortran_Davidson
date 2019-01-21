@@ -283,7 +283,7 @@ contains
     ! query spacework size
     allocate(work(1))
     call DSYSV("U", n, size(brr, 2), arr, n, ipiv, brr, n, work, -1, info)
-    call check_lapack_call(info, "DPOSV")
+    call check_lapack_call(info, "DSYSV")
 
     ! Allocate memory fo the workspace
     lwork = max(1, int(work(1)))
@@ -292,7 +292,7 @@ contains
     
     ! run linear solver
     call DSYSV("U", n, size(brr, 2), arr, n, ipiv, brr, n, work, lwork, info)
-    call check_lapack_call(info, "DPOSV")
+    call check_lapack_call(info, "DSYSV")
 
     deallocate(work)
     
