@@ -405,6 +405,7 @@ contains
     
     if (info /= 0) then
        print *, "call to subroutine: ", name, " has failed!"
+       print *, "info: ", info
        error stop
     end if
     
