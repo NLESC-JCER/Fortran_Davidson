@@ -68,15 +68,16 @@ contains
     integer, intent(out) :: iters
     
     !local variables
-    integer :: i, dim_sub, max_dim
+    integer :: i, j, dim_sub, max_dim
     real(dp) :: residue
     
     ! Basis of subspace of approximants
-    real(dp), dimension(lowest):: guess_eigenvalues
+    real(dp), dimension(lowest):: errors
 
     ! Working arrays
-    real(dp), dimension(:), allocatable :: eigenvalues_sub
+    real(dp), dimension(:), allocatable :: eigenvalues_sub, rs, guess
     real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, projected, V
+    logical :: condition 
 
     ! Iteration subpsace dimension
     dim_sub = lowest + (lowest / 2)
@@ -85,11 +86,10 @@ contains
     max_dim = size(mtx, 2) / 2
     
     ! 1. Variables initialization
-    guess_eigenvalues = 0
     V = eye(size(mtx, 1), dim_sub) ! Initial orthonormal basis
 
     ! ! Outer loop block Davidson schema
-    outer_loop: do i=1, (max_iters / dim_sub)
+    outer_loop: do i=1, max_iters
        
        ! 2. Generate subpace matrix problem by projecting into V
        projected = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
@@ -109,32 +109,31 @@ contains
        call lapack_eigensolver(projected, eigenvalues_sub, eigenvectors_sub)
 
        ! 4. Check for convergence
-       residue = norm(guess_eigenvalues - eigenvalues_sub(:lowest))
-       if (residue < tolerance) then
+       ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
+       do j=1,lowest
+          guess = eigenvalues_sub(j) * ritz_vectors(:, j)
+          rs = lapack_matrix_vector('N', mtx, ritz_vectors(:, j)) - guess
+          errors(j) = norm(rs)
+       end do
+
+       if (all(errors < tolerance)) then
           iters = i
           exit
        end if
-
+       
        ! 5. Add the correction vectors to the current basis
        if (size(V, 2) <= max_dim) then
           ! append correction to the current basis
-          print *, "correction!"
           correction = compute_correction(mtx, V, eigenvalues_sub, eigenvectors_sub, dim_sub, method)
           ! 6. Increase Basis size
-          print *, "call concatenate!"
           call concatenate(V, correction) 
        else
           ! 6. Otherwise reduce the basis of the subspace to the current correction
-          print *, "call reduce"
           V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :dim_sub))
        end if
 
        ! 7. Orthogonalize basis
-       print *, "call lapack solver!"
        call lapack_qr(V)
-
-       ! 8. Update guess
-       guess_eigenvalues = eigenvalues_sub(:lowest)
 
     end do outer_loop
 
@@ -149,8 +148,6 @@ contains
     ! Select the lowest eigenvalues and their corresponding ritz_vectors
     ! They are sort in increasing order
     eigenvalues = eigenvalues_sub(:lowest)
-
-     ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
  
     ! call check_deallocate_matrix(w1)
     
