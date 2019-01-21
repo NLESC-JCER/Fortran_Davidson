@@ -69,7 +69,6 @@ contains
     
     !local variables
     integer :: i, j, dim_sub, max_dim
-    real(dp) :: residue
     
     ! Basis of subspace of approximants
     real(dp), dimension(lowest):: errors
@@ -574,8 +573,7 @@ contains
     real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
 
     ! local variables
-    integer :: k, m, i, j
-    real(dp) :: x
+    integer :: k, m
     real(dp), dimension(size(mtx, 1), 1) :: rs
     real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: arr, diag, ritz_matrix, xs, ys
     real(dp), dimension(size(mtx, 1), 1) :: brr

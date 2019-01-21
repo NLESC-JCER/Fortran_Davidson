@@ -12,7 +12,6 @@ program main
   real(dp), dimension(50) :: xs
   real(dp) :: test_norm_eigenvalues
   integer :: iter_i, j
-  character(len=20) :: arg1
 
   ! mtx = read_matrix("tests/matrix.txt", 100)
   mtx = generate_diagonal_dominant(50, 1d-3)
