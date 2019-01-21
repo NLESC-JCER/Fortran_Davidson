@@ -71,10 +71,11 @@ contains
     integer :: i, j, dim_sub, max_dim
     
     ! Basis of subspace of approximants
+    real(dp), dimension(size(mtx, 1)) :: guess, rs
     real(dp), dimension(lowest):: errors
 
     ! Working arrays
-    real(dp), dimension(:), allocatable :: eigenvalues_sub, rs, guess
+    real(dp), dimension(:), allocatable :: eigenvalues_sub
     real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, projected, V
 
     ! Iteration subpsace dimension
@@ -88,7 +89,7 @@ contains
 
     ! ! Outer loop block Davidson schema
     outer_loop: do i=1, max_iters
-       
+
        ! 2. Generate subpace matrix problem by projecting into V
        projected = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
 
@@ -122,6 +123,8 @@ contains
        ! 5. Add the correction vectors to the current basis
        if (size(V, 2) <= max_dim) then
           ! append correction to the current basis
+          call check_deallocate_matrix(correction)
+          allocate(correction(size(mtx, 1), size(V, 2)))
           correction = compute_correction(mtx, V, eigenvalues_sub, eigenvectors_sub, dim_sub, method)
           ! 6. Increase Basis size
           call concatenate(V, correction) 
@@ -135,9 +138,7 @@ contains
 
     end do outer_loop
 
-    ! Free memory
-    call check_deallocate_matrix(correction)
-
+    !  8. Check convergence
     if (i > max_iters / dim_sub) then
        print *, "Warning: Algorithm did not converge!!"
     end if
@@ -146,10 +147,12 @@ contains
     ! Select the lowest eigenvalues and their corresponding ritz_vectors
     ! They are sort in increasing order
     eigenvalues = eigenvalues_sub(:lowest)
- 
-    ! call check_deallocate_matrix(w1)
+
     
-    deallocate(eigenvalues_sub, eigenvectors_sub, V, guess, rs)
+    ! Free memory
+    call check_deallocate_matrix(correction)
+
+    deallocate(eigenvalues_sub, eigenvectors_sub, V)
     
   end subroutine eigensolver
 
@@ -265,7 +268,7 @@ contains
   end subroutine lapack_qr
   
   subroutine lapack_solver(arr, brr)
-    !> Call lapack DPOSV subroutine to solve a AX=B Linear system
+    !> Call lapack DSYSV subroutine to solve a AX=B Linear system
     !> \param arr: matrix with the coefficients of the linear system
     !> \param brr: Vector with the constant terms
     !> \returns: Solution vector X (overwriten brr)
@@ -500,10 +503,31 @@ contains
           end if
        end do
     end do
-    
+
   end function generate_diagonal_dominant
 
+  function diagonal(matrix)
+    !> return the diagonal of a matrix
+    real(dp), dimension(:, :), intent(in) :: matrix
+    real(dp), dimension(size(matrix, 1)) :: diagonal
+
+    ! local variables
+    integer :: i, j, m
+
+    ! dimension of the matrix
+    m = size(matrix, 1)
     
+    do i=1,m
+       do j=1,m
+          if  (i == j) then
+             diagonal(i) = matrix(i, j)
+          end if
+       end do
+    end do
+
+  end function diagonal
+
+  
 end module davidson
 
 
@@ -576,28 +600,39 @@ contains
     ! local variables
     integer :: k, m
     real(dp), dimension(size(mtx, 1), 1) :: rs
-    real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: arr, diag, ritz_matrix, xs, ys
+    real(dp), dimension(size(mtx, 1), dim_sub) :: ritz_vectors
+    real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: arr, xs, ys
     real(dp), dimension(size(mtx, 1), 1) :: brr
 
     ! Diagonal matrix
     m = size(mtx, 1)
-
-    do k=1, dim_sub
-       diag = eye(m, m, eigenvalues(k))
-       ys = mtx - diag
-       rs(:, 1) = lapack_matrix_vector('N', ys , &
-            lapack_matrix_vector('N', V, eigenvectors(:, k)))
-
-       ritz_matrix = lapack_matmul('N', 'T', rs, rs)
-       xs = diag - ritz_matrix
-       arr = lapack_matmul('N', 'N', xs, lapack_matmul('N', 'N', ys, xs))
-       brr = -1.d0 * rs
+    ritz_vectors = matmul(V, eigenvectors) !lapack_matmul('N', 'N', V, eigenvectors)
+    do k=1, size(V, 2)
+       rs(:, 1) = ritz_vectors(:, k)
+       xs = eye(m, m) - lapack_matmul('N', 'T', rs, rs)
+       ys = substract_from_diagonal(mtx, eigenvalues(k))
+       arr = matmul(xs, matmul(ys, xs))
+       brr = -rs
        call lapack_solver(arr, brr)
        correction(:, k) = brr(:, 1)
-
-       
     end do
-    
+
   end function compute_GJD
-    
+
+  function substract_from_diagonal(mtx, alpha) result(arr)
+    !> susbstract an scalar from the diagonal of a matrix
+    !> \param mtx: square matrix
+    !> \param alpha: scalar to substract
+    real(dp), dimension(:, :), intent(in) :: mtx
+    real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: arr
+    real(dp), intent(in) :: alpha
+    integer :: i
+
+    arr = mtx
+    do i=1,size(mtx, 1)
+       arr(i, i) = arr(i, i) - alpha
+    end do
+
+  end function substract_from_diagonal
+  
 end submodule correction_methods
