@@ -118,15 +118,19 @@ contains
        ! 5. Add the correction vectors to the current basis
        if (size(V, 2) <= max_dim) then
           ! append correction to the current basis
+          print *, "correction!"
           correction = compute_correction(mtx, V, eigenvalues_sub, eigenvectors_sub, dim_sub, method)
           ! 6. Increase Basis size
+          print *, "call concatenate!"
           call concatenate(V, correction) 
        else
           ! 6. Otherwise reduce the basis of the subspace to the current correction
+          print *, "call reduce"
           V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :dim_sub))
        end if
 
        ! 7. Orthogonalize basis
+       print *, "call lapack solver!"
        call lapack_qr(V)
 
        ! 8. Update guess
@@ -182,6 +186,7 @@ contains
 
     
     call DSYEV("V", "U", dim, mtx, dim, eigenvalues_work, work, -1, info)
+    call check_lapack_call(info, "DSYEV")
 
     ! Allocate memory for the workspace
     lwork = max(1, int(work(1)))
@@ -190,6 +195,7 @@ contains
 
     ! Compute Eigenvalues
     call DSYEV("V", "U", dim, mtx, dim, eigenvalues_work, work, lwork, info)
+    call check_lapack_call(info, "DSYEV")
 
     ! Sort the eigenvalues and eigenvectors of the basis
     eigenvalues = eigenvalues_work
@@ -231,6 +237,7 @@ contains
     ! 1.1 Query size of the workspace (Check lapack documentation)
     allocate(work(1))
     call DGEQRF(m, n, basis, m, tau, work, -1, info)
+    call check_lapack_call(info, "DGEQRF")
 
     ! 1.2 Allocate memory for the workspace
     lwork = max(1, int(work(1)))
@@ -239,12 +246,14 @@ contains
 
     ! 1.3 Call QR factorization
     call DGEQRF(m, n, basis, m, tau, work, lwork, info)
+    call check_lapack_call(info, "DGEQRF")
     deallocate(work)
-    
+
     ! 2. Generates an orthonormal matrix
     ! 2.1 Query size of the workspace (Check lapack documentation)
     allocate(work(1))
     call DORGQR(m, n, min(m, n), basis, m, tau, work, -1, info)
+    call check_lapack_call(info, "DORGQR")
 
     ! 2.2 Allocate memory fo the workspace
     lwork = max(1, int(work(1)))
@@ -253,6 +262,7 @@ contains
 
     ! 2.3 compute the matrix Q
     call DORGQR(m, n, min(m, n), basis, m, tau, work, lwork, info)
+    call check_lapack_call(info, "DORGQR")
     
     ! release memory
     deallocate(work)
@@ -275,6 +285,7 @@ contains
     n = size(arr, 1)
     
     call DPOSV("U", n, size(brr, 2), arr, n,  brr, n, info)
+    call check_lapack_call(info, "DPOSV")
     
   end subroutine lapack_solver
 
@@ -325,6 +336,7 @@ contains
     allocate(mtx(m, n))
 
     call DGEMM(transA, transB, m, n, k, x, arr, lda, brr, ldb, 0, mtx, m)
+    
 
   end function lapack_matmul
 
@@ -361,6 +373,7 @@ contains
     allocate(rs(m))
     
     call DGEMV(transA, m, n, scalar, mtx, m, vector, 1, 0.d0, rs, 1)
+    
 
   end function lapack_matrix_vector
 
@@ -373,23 +386,45 @@ contains
     end if
 
   end subroutine check_deallocate_matrix
+
+  subroutine check_lapack_call(info, name)
+    !> Check if a subroutine finishes sucessfully
+    !> \param info: Termination signal
+    !> \param name: Name of the subroutine
+    integer :: info
+    character(len=*), intent(in) :: name
     
-  pure function eye(m, n)
+    if (info /= 0) then
+       print *, "call to subroutine: ", name, " has failed!"
+       error stop
+    end if
+    
+  end subroutine check_lapack_call
+  
+  pure function eye(m, n, alpha)
     !> Create a matrix with ones in the diagonal and zero everywhere else
     !> \param m: number of rows
     !> \param n: number of colums
+    !> \param alpha: optional diagonal value
     !> \return matrix of size n x m
     integer, intent(in) :: n, m
     real(dp), dimension(m, n) :: eye
+    real(dp), intent(in), optional :: alpha
     
     !local variable
     integer :: i, j
+    real(dp) :: x
+
+    ! check optional values
+    x = 1.d0
+    if (present(alpha)) x = alpha
+    
     do i=1, m
        do j=1, n
           if (i /= j) then
              eye(i, j) = 0
           else
-             eye(i, i) = 1
+             eye(i, i) = x
           end if
        end do
     end do
@@ -401,7 +436,7 @@ contains
     real(dp), dimension(:), intent(in) :: vector
     real(dp) :: norm
 
-    norm = sqrt(sum(vector ** 2))
+    norm = sqrt(sum(vector ** 2.d0))
 
   end function norm
   
@@ -510,11 +545,11 @@ contains
 
     ! shape of matrix
     m = size(mtx, 1)
-    diag = eye(m, m)
     
-    do  j=1, dim_sub
-       x = 1 / (eigenvalues(j) - mtx(j, j))
-       arr = mtx - diag * eigenvalues(j)
+    do j=1, dim_sub
+       x = 1.d0 / (eigenvalues(j) - mtx(j, j))
+       diag = eye(m , m, eigenvalues(j))
+       arr = mtx - diag
        brr = lapack_matrix_vector('N', V, eigenvectors(:, j))
        correction(:, j) = lapack_matrix_vector('N', arr, brr, x)
     end do
@@ -536,18 +571,20 @@ contains
 
     ! Diagonal matrix
     m = size(mtx, 1)
-    diag = eye(m, m)
 
     do k=1, dim_sub
-       ritz_vector(:, 1) = lapack_matrix_vector('N', mtx - diag *eigenvalues(k), &
+       diag = eye(m, m, eigenvalues(k))
+       ys = mtx - diag
+       ritz_vector(:, 1) = lapack_matrix_vector('N', mtx - diag , &
             lapack_matrix_vector('N', V, eigenvectors(:, k)))
+
        ritz_matrix = lapack_matmul('N', 'T', ritz_vector, ritz_vector)
        xs = diag - ritz_matrix
-       ys = mtx - diag * eigenvalues(k)
        arr = lapack_matmul('N', 'N', xs, lapack_matmul('N', 'N', ys, xs))
-       brr = ritz_vector / (eigenvalues(k) - mtx(k, k))
+       brr = -1.d0 * ritz_vector
        call lapack_solver(arr, brr)
        correction(:, k) = brr(:, 1)
+
        
     end do
     
