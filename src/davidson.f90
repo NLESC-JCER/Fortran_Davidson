@@ -77,7 +77,6 @@ contains
     ! Working arrays
     real(dp), dimension(:), allocatable :: eigenvalues_sub, rs, guess
     real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, projected, V
-    logical :: condition 
 
     ! Iteration subpsace dimension
     dim_sub = lowest + (lowest / 2)
@@ -151,7 +150,7 @@ contains
  
     ! call check_deallocate_matrix(w1)
     
-    deallocate(eigenvalues_sub, eigenvectors_sub, V)
+    deallocate(eigenvalues_sub, eigenvectors_sub, V, guess, rs)
     
   end subroutine eigensolver
 
