@@ -163,7 +163,7 @@ contains
     
     ! input/output
     implicit none
-    real(dp), dimension(:, :), allocatable, intent(inout) :: mtx
+    real(dp), dimension(:, :), intent(in) :: mtx
     real(dp), dimension(size(mtx, 1)), intent(inout) :: eigenvalues
     real(dp), dimension(size(mtx, 1), size(mtx, 2)), intent(inout) :: eigenvectors
 
@@ -197,7 +197,7 @@ contains
     eigenvectors = mtx
     
     ! release memory
-    deallocate(work, mtx)
+    deallocate(work)
     
   end subroutine lapack_eigensolver
 
