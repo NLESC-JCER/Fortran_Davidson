@@ -14,8 +14,8 @@ program main
   ! mtx = read_matrix("tests/matrix.txt", 100)
   mtx = generate_diagonal_dominant(50, 1d-3)
 
-  call eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 3, "GJD", 100, 1d-12, iter_i)
-  call eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 100, 1d-12, iter_i)
+  call eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 3, "GJD", 1000, 1d-8, iter_i)
+  call eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 1000, 1d-8, iter_i)
 
   call write_matrix("matrix.txt", mtx)
   call write_vector("eigenvalues_GJD.txt",eigenvalues_GJD)
