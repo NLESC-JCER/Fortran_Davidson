@@ -276,12 +276,26 @@ contains
     real(dp), dimension(:, :), intent(inout) :: arr, brr
     
     ! local variables
-    integer :: n, info
+    real(dp), dimension(:), allocatable :: work
+    integer :: n, info, ipiv, lwork
     
     n = size(arr, 1)
-    
-    call DPOSV("U", n, size(brr, 2), arr, n,  brr, n, info)
+
+    ! query spacework size
+    allocate(work(1))
+    call DSYSV("U", n, size(brr, 2), arr, n, ipiv, brr, n, work, -1, info)
     call check_lapack_call(info, "DPOSV")
+
+    ! Allocate memory fo the workspace
+    lwork = max(1, int(work(1)))
+    deallocate(work)
+    allocate(work(lwork))
+    
+    ! run linear solver
+    call DSYSV("U", n, size(brr, 2), arr, n, ipiv, brr, n, work, lwork, info)
+    call check_lapack_call(info, "DPOSV")
+
+    deallocate(work)
     
   end subroutine lapack_solver
 
@@ -560,8 +574,9 @@ contains
     real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
 
     ! local variables
-    integer :: k, m
-    real(dp), dimension(size(mtx, 1), 1) :: ritz_vector
+    integer :: k, m, i, j
+    real(dp) :: x
+    real(dp), dimension(size(mtx, 1), 1) :: rs
     real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: arr, diag, ritz_matrix, xs, ys
     real(dp), dimension(size(mtx, 1), 1) :: brr
 
@@ -571,13 +586,13 @@ contains
     do k=1, dim_sub
        diag = eye(m, m, eigenvalues(k))
        ys = mtx - diag
-       ritz_vector(:, 1) = lapack_matrix_vector('N', mtx - diag , &
+       rs(:, 1) = lapack_matrix_vector('N', ys , &
             lapack_matrix_vector('N', V, eigenvectors(:, k)))
 
-       ritz_matrix = lapack_matmul('N', 'T', ritz_vector, ritz_vector)
+       ritz_matrix = lapack_matmul('N', 'T', rs, rs)
        xs = diag - ritz_matrix
        arr = lapack_matmul('N', 'N', xs, lapack_matmul('N', 'N', ys, xs))
-       brr = -1.d0 * ritz_vector
+       brr = -1.d0 * rs
        call lapack_solver(arr, brr)
        correction(:, k) = brr(:, 1)
 

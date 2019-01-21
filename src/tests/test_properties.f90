@@ -29,12 +29,12 @@ program main
   print *, "DPR method:"
   do j=1,3
      xs = matmul(mtx, eigenvectors_DPR(:, j)) - (eigenvalues_DPR(j) * eigenvectors_DPR(:, j))
-     print *, "eigenvalue ", j, ": ", norm(xs) 
+     print *, "eigenvalue ", j, ": ", norm(xs) < 1d-8
   end do
   print *, "GJD method:"
   do j=1,3
      xs = matmul(mtx, eigenvectors_GJD(:, j)) - (eigenvalues_GJD(j) * eigenvectors_GJD(:, j))
-     print *, "eigenvalue ", j, ": ", norm(xs) 
+     print *, "eigenvalue ", j, ": ", norm(xs) < 1d-8
   end do
 
   

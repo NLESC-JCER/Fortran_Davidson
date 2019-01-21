@@ -21,6 +21,7 @@ def check_eigenvalues(files):
     mtx = mtx.reshape(dim, dim)
     ncols = es_DPR.size
     vs_DPR = vs_DPR.reshape(dim, ncols)
+    vs_GJD = vs_GJD.reshape(dim, ncols)
 
     # compute the eigenvalues/eigenvectors of the test matrix
     es, vs = np.linalg.eigh(mtx)
@@ -28,6 +29,16 @@ def check_eigenvalues(files):
     # eigenvalues are the same
     assert np.allclose(es_DPR, es_GJD)
     assert np.allclose(es[:ncols], es_DPR)
+
+    # Precision Eigenvectos numpy
+    for i in range(ncols):
+        print("precision eigenvalue ", i, ":")
+        x = np.linalg.norm(np.dot(mtx, vs[:, i]) - (es[i] * vs[:, i]))
+        y = np.linalg.norm(np.dot(mtx, vs_DPR[:, i]) - (es_DPR[i] * vs_DPR[:, i]))
+        z = np.linalg.norm(np.dot(mtx, vs_GJD[:, i]) - (es_GJD[i] * vs_GJD[:, i]))
+
+        msg = "\tnumpy: {:5.2e} DPR: {:5.2e} GJD: {:5.2e}".format(x, y, z)
+        print(msg)
 
 
 def main():

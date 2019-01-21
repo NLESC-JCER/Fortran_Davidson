@@ -29,7 +29,7 @@ contains
   subroutine write_vector(path_file, vector)
     !> Write vector to path_file
     character(len=*), intent(in) :: path_file
-    real(dp), dimension(:) :: vector
+    real(dp), dimension(:), intent(in) :: vector
     integer :: i
 
     open(unit=314, file=path_file, status="REPLACE")
@@ -40,5 +40,22 @@ contains
     
   end subroutine write_vector
 
+  subroutine write_matrix(path_file, mtx)
+    !> Write matrix to path_file
+    character(len=*), intent(in) :: path_file
+    real(dp), dimension(:, :), intent(in) :: mtx
+    integer :: i, j
+
+    open(unit=314, file=path_file, status="REPLACE")
+    do i=1,size(mtx, 1)
+       do j=1,size(mtx, 2)
+          write(314, *) mtx(i, j)
+       end do
+    end do
+    close(314)
+    
+  end subroutine write_matrix
+
+  
 end module test_utils
 

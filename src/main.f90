@@ -79,40 +79,42 @@ program main
   real(dp), dimension(50, 3) :: eigenvectors_DPR, eigenvectors_GJD
   real(dp), dimension(50, 50) :: mtx
   real(dp) :: test_norm_eigenvalues, sparsity
-  real(dp), dimension(50) :: test_DPR, test_GJD
+  real(dp), dimension(50) :: test_DPR, test_GJD, xs
   real(dp), dimension(5, 2) :: times
   integer, dimension(5, 2) :: iters
   integer, dimension(5) :: dims
-  integer :: iter_i
+  integer :: iter_i, j
   character(len=20) :: arg1
 
   ! mtx = read_matrix("tests/matrix.txt", 100)
   mtx = generate_diagonal_dominant(50, 1d-3)
-
-  call eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 3, "GJD", 100, 1d-8, iter_i)
-  call eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 100, 1d-8, iter_i)
   
+  call eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 3, "GJD", 100, 1d-7, iter_i)
+  call eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 100, 1d-7, iter_i)
+
   print *, "Test 1"
   test_norm_eigenvalues = norm(eigenvalues_GJD - eigenvalues_DPR)
-  print *, test_norm_eigenvalues
-  print *, "Eigenvalues norm computed by different methods are the same: ", test_norm_eigenvalues < 1e-6
-
-  print *, "Test 2"
-  test_DPR = diagonal(matmul(eigenvectors_DPR, transpose(eigenvectors_DPR)))
-  test_GJD = diagonal(matmul(eigenvectors_GJD, transpose(eigenvectors_GJD)))
-  print *, "If V are the eigenvalues, then V V^T = I"
-  print *, "DPR: ", norm(test_DPR(:3) - 1) < 1e-6
-  print *, "GJD: ", norm(test_GJD(:3) - 1) < 1e-6
-
-  print *, eigenvalues_DPR(:3)
-  print *, eigenvalues_GJD(:3)
+  print *, "Check that eigenvalues norm computed by different methods are the same: ", test_norm_eigenvalues < 1e-6
   
-  ! RUn benchmark
+  print *, "Test 2"
+  print *, "Check that eigenvalue equation:  H V = l V holds"
+  print *, "DPR method:"
+  do j=1,3
+     xs = matmul(mtx, eigenvectors_DPR(:, j)) - (eigenvalues_DPR(j) * eigenvectors_DPR(:, j))
+     print *, "eigenvalue ", j, ": ", norm(xs) < 1.d-7
+  end do
+  print *, "GJD method:"
+  do j=1,3
+     xs = matmul(mtx, eigenvectors_GJD(:, j)) - (eigenvalues_GJD(j) * eigenvectors_GJD(:, j))
+     print *, "eigenvalue ", j, ": ",  norm(xs) < 1.d-7
+  end do
+  
+  ! Run benchmark
   call get_command_argument(1, arg1)
   if (arg1 == "benchmark") then
      print *, "Running Benchmark! "
-     dims = [10, 50, 100, 500, 1000] !, 5000, 7500, 10 ** 4]
-     sparsity = 1d-4
+     dims = [10, 50, 100, 500, 1000]
+     sparsity = 1d-3
      call compute_benchmark(dims, 3, sparsity, times, iters)
   end if
   
