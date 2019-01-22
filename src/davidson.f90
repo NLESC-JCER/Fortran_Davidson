@@ -91,7 +91,8 @@ contains
     outer_loop: do i=1, max_iters
 
        ! 2. Generate subpace matrix problem by projecting into V
-       projected = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
+       projected = matmul(transpose(V), matmul(mtx, V))
+       ! projected = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
 
        ! 3. compute the eigenvalues and their corresponding ritz_vectors
        ! for the projected matrix using lapack
@@ -108,10 +109,12 @@ contains
        call lapack_eigensolver(projected, eigenvalues_sub, eigenvectors_sub)
 
        ! 4. Check for convergence
-       ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
+       ritz_vectors =  matmul(V, eigenvectors_sub(:, 1:lowest))
+       ! ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
        do j=1,lowest
           guess = eigenvalues_sub(j) * ritz_vectors(:, j)
-          rs = lapack_matrix_vector('N', mtx, ritz_vectors(:, j)) - guess
+          rs  = matmul(mtx, ritz_vectors(:, j)) - guess
+          ! rs = lapack_matrix_vector('N', mtx, ritz_vectors(:, j)) - guess
           errors(j) = norm(rs)
        end do
 
@@ -130,7 +133,8 @@ contains
           call concatenate(V, correction) 
        else
           ! 6. Otherwise reduce the basis of the subspace to the current correction
-          V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :dim_sub))
+          V = matmul(V, eigenvectors_sub(:, :dim_sub))
+          ! V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :dim_sub))
        end if
 
        ! 7. Orthogonalize basis
@@ -279,7 +283,8 @@ contains
     
     ! local variables
     real(dp), dimension(:), allocatable :: work
-    integer :: n, info, ipiv, lwork
+    integer :: n, info, lwork
+    integer, dimension(size(arr, 1)) :: ipiv
     
     n = size(arr, 1)
 
@@ -581,11 +586,10 @@ contains
     m = size(mtx, 1)
     
     do j=1, dim_sub
-       x = 1.d0 / (eigenvalues(j) - mtx(j, j))
        diag = eye(m , m, eigenvalues(j))
        arr = mtx - diag
-       brr = lapack_matrix_vector('N', V, eigenvectors(:, j))
-       correction(:, j) = lapack_matrix_vector('N', arr, brr, x)
+       brr = matmul(V, eigenvectors(:, j))
+       correction(:, j) = matmul(arr, brr) / (eigenvalues(j) - mtx(j, j))
     end do
     
   end function compute_DPR
@@ -600,7 +604,7 @@ contains
     ! local variables
     integer :: k, m
     real(dp), dimension(size(mtx, 1), 1) :: rs
-    real(dp), dimension(size(mtx, 1), dim_sub) :: ritz_vectors
+    real(dp), dimension(size(mtx, 1), size(V, 2)) :: ritz_vectors
     real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: arr, xs, ys
     real(dp), dimension(size(mtx, 1), 1) :: brr
 
@@ -609,7 +613,7 @@ contains
     ritz_vectors = matmul(V, eigenvectors) !lapack_matmul('N', 'N', V, eigenvectors)
     do k=1, size(V, 2)
        rs(:, 1) = ritz_vectors(:, k)
-       xs = eye(m, m) - lapack_matmul('N', 'T', rs, rs)
+       xs = eye(m, m) - matmul(rs, transpose(rs))!lapack_matmul('N', 'T', rs, rs)
        ys = substract_from_diagonal(mtx, eigenvalues(k))
        arr = matmul(xs, matmul(ys, xs))
        brr = -rs
