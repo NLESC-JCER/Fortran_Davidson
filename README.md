@@ -47,8 +47,8 @@ and random number of the order `1e-4` on the off-diagonal entries.
  * [Davidson diagonalization method and its applications to electronic structure calculations](https://pdfs.semanticscholar.org/57811/eaf768d1a006f505dfe24f329874a679ba59.pdf?_ga=2.219777566.664950272.1547548596-1327556406.1547548596)
  * [Numerical Methods for Large Eigenvalue Problem](https://doi.org/10.1137/1.9781611970739)
 
-Installation
-------------
+Installation and Testing
+------------------------
 
 To compile execute:
 ```
@@ -58,6 +58,12 @@ cmake -H. -Bbuild && cmake --build build
 To use another compiler (e.g. ifort):
 ```
 cmake -H. -Bbuild -DCMAKE_Fortran_COMPILER=ifort && cmake --build build
+```
+
+To run the test:
+```
+cmake -H. -Bbuild -DENABLE_TEST=ON && cmake --build build
+cd build && ctest -V
 ```
 
 To Debug compile as:
