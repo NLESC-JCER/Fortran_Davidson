@@ -586,7 +586,7 @@ contains
        diag = eye(m , m, eigenvalues(j))
        arr = mtx - diag
        brr = lapack_matrix_vector('N', V, eigenvectors(:, j))
-       correction(:, j) = matmul(arr, brr) / (eigenvalues(j) - mtx(j, j))       
+       correction(:, j) = lapack_matrix_vector('N', arr, brr) / (eigenvalues(j) - mtx(j, j))
     end do
 
   end function compute_DPR
