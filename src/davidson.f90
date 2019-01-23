@@ -88,9 +88,7 @@ contains
     outer_loop: do i=1, max_iters
 
        ! 2. Generate subpace matrix problem by projecting into V
-       projected = matmul(transpose(V), matmul(mtx, V))
-       ! projected = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
-
+       projected = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
        
        ! 3. compute the eigenvalues and their corresponding ritz_vectors
        ! for the projected matrix using lapack
@@ -126,7 +124,7 @@ contains
           ! append correction to the current basis
           call check_deallocate_matrix(correction)
           allocate(correction(size(mtx, 1), size(V, 2)))
-          correction = compute_correction(mtx, V, eigenvalues_sub, eigenvectors_sub, method)          
+          correction = compute_correction(mtx, V, eigenvalues_sub, eigenvectors_sub, method)
           ! 6. Increase Basis size
           call concatenate(V, correction)
           
@@ -330,7 +328,7 @@ contains
     ! local variables
     real(dp) :: x
     integer :: m, n, k, lda, ldb
-    x = 1
+    x = 1.d0
 
     ! check optional variable
     if (present(alpha)) x=alpha
@@ -355,8 +353,9 @@ contains
 
     ! resulting array
     allocate(mtx(m, n))
+    mtx = 0.d0
 
-    call DGEMM(transA, transB, m, n, k, x, arr, lda, brr, ldb, 0, mtx, m)
+    call DGEMM(transA, transB, m, n, k, x, arr, lda, brr, ldb, 0.d0, mtx, m)
     
 
   end function lapack_matmul

@@ -8,7 +8,6 @@ program main
   real(dp), dimension(3) :: eigenvalues_DPR, eigenvalues_GJD
   real(dp), dimension(50, 3) :: eigenvectors_DPR, eigenvectors_GJD
   real(dp), dimension(50, 50) :: mtx
-  real(dp), dimension(5, 2) :: times
   integer :: iter_i
 
   ! mtx = read_matrix("tests/matrix.txt", 100)
