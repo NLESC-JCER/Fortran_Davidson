@@ -129,8 +129,7 @@ contains
           
        else
           ! 6. Otherwise reduce the basis of the subspace to the current correction
-          V = matmul(V, eigenvectors_sub(:, :dim_sub))
-          ! V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :dim_sub))
+          V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :dim_sub))
        end if
 
        ! 7. Orthogonalize basis
@@ -594,7 +593,6 @@ contains
 
   function compute_GJD(mtx, V, eigenvalues, eigenvectors) result(correction)
     !> Compute the Generalized Jacobi Davidson (GJD) correction
-    use ieee_arithmetic, only: ieee_is_normal
     
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
