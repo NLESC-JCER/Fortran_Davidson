@@ -11,7 +11,7 @@ module davidson
   public :: eigensolver, generate_diagonal_dominant, norm, lapack_eigensolver
   
   interface
-     module function compute_correction(mtx, V, eigenvalues, eigenvectors, dim_sub, method) &
+     module function compute_correction(mtx, V, eigenvalues, eigenvectors, method) &
           result(correction)
        !> compute the correction vector using a given `method` for the Davidson algorithm
        !> See correction_methods submodule for the implementations
@@ -19,10 +19,8 @@ module davidson
        !> \param V: Basis of the iteration subspace
        !> \param eigenvalues: of the reduce problem
        !> \param eigenvectors: of the reduce problem
-       !> \param dim_sub: dimension of the subpace
        !> \param method: name of the method to compute the correction
        
-       integer, intent(in) :: dim_sub
        real(dp), dimension(:), intent(in) :: eigenvalues
        real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
        character(len=*), optional, intent(in) :: method
@@ -55,7 +53,6 @@ contains
     !> \param method: Method to compute the correction vectors
     !> \param iters: Number of iterations until convergence
     !> \return eigenvalues and ritz_vectors of the matrix `mtx`
-
     implicit none
     ! input/output variable
     integer, intent(in) :: lowest
@@ -94,6 +91,7 @@ contains
        projected = matmul(transpose(V), matmul(mtx, V))
        ! projected = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
 
+       
        ! 3. compute the eigenvalues and their corresponding ritz_vectors
        ! for the projected matrix using lapack
        call check_deallocate_matrix(eigenvectors_sub)
@@ -128,9 +126,12 @@ contains
           ! append correction to the current basis
           call check_deallocate_matrix(correction)
           allocate(correction(size(mtx, 1), size(V, 2)))
-          correction = compute_correction(mtx, V, eigenvalues_sub, eigenvectors_sub, dim_sub, method)
+          correction = compute_correction(mtx, V, eigenvalues_sub, eigenvectors_sub, method)
+          
           ! 6. Increase Basis size
-          call concatenate(V, correction) 
+          call concatenate(V, correction)
+
+          
        else
           ! 6. Otherwise reduce the basis of the subspace to the current correction
           V = matmul(V, eigenvectors_sub(:, :dim_sub))
@@ -185,7 +186,6 @@ contains
     
     ! Query size of the optimal workspace
     allocate(work(1))
-
     
     call DSYEV("V", "U", dim, mtx, dim, eigenvalues_work, work, -1, info)
     call check_lapack_call(info, "DSYEV")
@@ -544,10 +544,9 @@ submodule (davidson) correction_methods
   
 contains
 
-  module function compute_correction(mtx, V, eigenvalues, eigenvectors, dim_sub, method) &
+  module function compute_correction(mtx, V, eigenvalues, eigenvectors, method) &
        result(correction)
     !> see interface in davidson module
-    integer, intent(in) :: dim_sub
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
     character(len=*), optional,intent(in) :: method
@@ -562,41 +561,37 @@ contains
     
     select case (method)
     case ("DPR")
-       correction = compute_DPR(mtx, V, eigenvalues, eigenvectors, dim_sub)
+       correction = compute_DPR(mtx, V, eigenvalues, eigenvectors)
     case ("GJD")
-       correction = compute_GJD(mtx, V, eigenvalues, eigenvectors, dim_sub)
+       correction = compute_GJD(mtx, V, eigenvalues, eigenvectors)
     end select
     
   end function compute_correction
 
-  function compute_DPR(mtx, V, eigenvalues, eigenvectors, dim_sub) result(correction)
+  function compute_DPR(mtx, V, eigenvalues, eigenvectors) result(correction)
     !> compute Diagonal-Preconditioned-Residue (DPR) correction
-    integer, intent(in) :: dim_sub
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
     real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
-
     ! local variables
     integer :: j, m
-    real(dp) :: x
     real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: diag, arr
     real(dp), dimension(size(mtx, 1)) :: brr
 
     ! shape of matrix
     m = size(mtx, 1)
     
-    do j=1, dim_sub
+    do j=1, size(V, 2)
        diag = eye(m , m, eigenvalues(j))
        arr = mtx - diag
        brr = matmul(V, eigenvectors(:, j))
-       correction(:, j) = matmul(arr, brr) / (eigenvalues(j) - mtx(j, j))
+       correction(:, j) = matmul(arr, brr) / (eigenvalues(j) - mtx(j, j))       
     end do
-    
+
   end function compute_DPR
 
-  function compute_GJD(mtx, V, eigenvalues, eigenvectors, dim_sub) result(correction)
+  function compute_GJD(mtx, V, eigenvalues, eigenvectors) result(correction)
     !> Compute the Generalized Jacobi Davidson (GJD) correction
-    integer, intent(in) :: dim_sub
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
     real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
