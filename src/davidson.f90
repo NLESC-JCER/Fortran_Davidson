@@ -607,7 +607,7 @@ contains
 
     ! Diagonal matrix
     m = size(mtx, 1)
-    ritz_vectors = matmul(V, eigenvectors) !lapack_matmul('N', 'N', V, eigenvectors)
+    ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors)
     do k=1, size(V, 2)
        rs(:, 1) = ritz_vectors(:, k)
        xs = eye(m, m) - matmul(rs, transpose(rs))!lapack_matmul('N', 'T', rs, rs)

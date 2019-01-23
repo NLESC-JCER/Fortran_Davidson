@@ -21,7 +21,7 @@ program main
 
   print *, "Test 1"
   test_norm_eigenvalues = norm(eigenvalues_GJD - eigenvalues_DPR)
-  print *, "Check that eigenvalues norm computed by different methods are the same: ", test_norm_eigenvalues < 1e-6
+  print *, "Check that eigenvalues norm computed by different methods are the same: ", test_norm_eigenvalues < 1e-8
   
   print *, "Test 2"
   print *, "Check that eigenvalue equation:  H V = l V holds"
