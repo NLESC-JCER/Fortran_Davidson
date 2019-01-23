@@ -610,9 +610,9 @@ contains
     ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors)
     do k=1, size(V, 2)
        rs(:, 1) = ritz_vectors(:, k)
-       xs = eye(m, m) - matmul(rs, transpose(rs))!lapack_matmul('N', 'T', rs, rs)
+       xs = eye(m, m) - lapack_matmul('N', 'T', rs, rs)
        ys = substract_from_diagonal(mtx, eigenvalues(k))
-       arr = matmul(xs, matmul(ys, xs))
+       arr = lapack_matmul('N', 'N', xs, lapack_matmul('N', 'N', ys, xs))
        brr = -rs
        
        call lapack_solver(arr, brr)

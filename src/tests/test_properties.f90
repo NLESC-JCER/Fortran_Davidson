@@ -36,7 +36,6 @@ program main
      print *, "eigenvalue ", j, ": ", norm(xs) < 1d-8
   end do
 
-
   print *, "Test 3"
   print *, "If V are the eigenvector then V * V^T = I"
   ys = diagonal(matmul(eigenvectors_GJD, transpose(eigenvectors_GJD)))
