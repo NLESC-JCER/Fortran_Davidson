@@ -105,8 +105,7 @@ contains
        call lapack_eigensolver(projected, eigenvalues_sub, eigenvectors_sub)
 
        ! 4. Check for convergence
-       ritz_vectors =  matmul(V, eigenvectors_sub(:, 1:lowest))
-       ! ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
+       ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
        do j=1,lowest
           guess = eigenvalues_sub(j) * ritz_vectors(:, j)
           rs  = matmul(mtx, ritz_vectors(:, j)) - guess
