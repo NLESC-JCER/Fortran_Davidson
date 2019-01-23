@@ -108,8 +108,7 @@ contains
        ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
        do j=1,lowest
           guess = eigenvalues_sub(j) * ritz_vectors(:, j)
-          rs  = matmul(mtx, ritz_vectors(:, j)) - guess
-          ! rs = lapack_matrix_vector('N', mtx, ritz_vectors(:, j)) - guess
+          rs = lapack_matrix_vector('N', mtx, ritz_vectors(:, j)) - guess
           errors(j) = norm(rs)
        end do
 
@@ -379,7 +378,7 @@ contains
     ! local variable
     integer :: m, n
     real(dp) :: scalar
-    scalar = 1
+    scalar = 1.d0
     
     ! check optional variable
     if (present(alpha)) scalar=alpha
@@ -389,6 +388,7 @@ contains
     n = size(mtx, 2)
 
     allocate(rs(m))
+    rs = 0.d0
     
     call DGEMV(transA, m, n, scalar, mtx, m, vector, 1, 0.d0, rs, 1)
     
