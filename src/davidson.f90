@@ -126,11 +126,9 @@ contains
           ! append correction to the current basis
           call check_deallocate_matrix(correction)
           allocate(correction(size(mtx, 1), size(V, 2)))
-          correction = compute_correction(mtx, V, eigenvalues_sub, eigenvectors_sub, method)
-          
+          correction = compute_correction(mtx, V, eigenvalues_sub, eigenvectors_sub, method)          
           ! 6. Increase Basis size
           call concatenate(V, correction)
-
           
        else
           ! 6. Otherwise reduce the basis of the subspace to the current correction
@@ -290,7 +288,7 @@ contains
 
     ! query spacework size
     allocate(work(1))
-    call DSYSV("U", n, size(brr, 2), arr, n, ipiv, brr, n, work, -1, info)
+    call DSYSV("U", n, 1, arr, n, ipiv, brr, n, work, -1, info)
     call check_lapack_call(info, "DSYSV")
 
     ! Allocate memory fo the workspace
@@ -299,8 +297,14 @@ contains
     allocate(work(lwork))
     
     ! run linear solver
-    call DSYSV("U", n, size(brr, 2), arr, n, ipiv, brr, n, work, lwork, info)
-    call check_lapack_call(info, "DSYSV")
+    call DSYSV("U", n, 1, arr, n, ipiv, brr, n, work, lwork, info)
+    ! If the diagonalization fails due to a singular value try to recover
+    ! by replacing the 0 value with a tiny one
+    if (info > 0) then
+       arr(info, info) = tiny(arr(1, 1))
+       call DSYSV("U", n, 1, arr, n, ipiv, brr, n, work, lwork, info)
+       call check_lapack_call(info, "DSYSV")
+    end if
 
     deallocate(work)
     
@@ -592,6 +596,8 @@ contains
 
   function compute_GJD(mtx, V, eigenvalues, eigenvectors) result(correction)
     !> Compute the Generalized Jacobi Davidson (GJD) correction
+    use ieee_arithmetic, only: ieee_is_normal
+    
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
     real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
@@ -612,10 +618,13 @@ contains
        ys = substract_from_diagonal(mtx, eigenvalues(k))
        arr = matmul(xs, matmul(ys, xs))
        brr = -rs
+       
        call lapack_solver(arr, brr)
        correction(:, k) = brr(:, 1)
     end do
 
+
+    
   end function compute_GJD
 
   function substract_from_diagonal(mtx, alpha) result(arr)
@@ -631,7 +640,7 @@ contains
     do i=1,size(mtx, 1)
        arr(i, i) = arr(i, i) - alpha
     end do
-
+    
   end function substract_from_diagonal
   
 end submodule correction_methods

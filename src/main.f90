@@ -86,7 +86,7 @@ program main
   integer :: iter_i, j
   character(len=20) :: arg1
 
-  mtx = generate_diagonal_dominant(50, 1d-3)
+  mtx = generate_diagonal_dominant(50, 1d-4)
 
   call eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 3, "GJD", 1000, 1d-8, iter_i)
   call eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 1000, 1d-8, iter_i)
