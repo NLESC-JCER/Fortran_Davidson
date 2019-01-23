@@ -585,7 +585,7 @@ contains
     do j=1, size(V, 2)
        diag = eye(m , m, eigenvalues(j))
        arr = mtx - diag
-       brr = matmul(V, eigenvectors(:, j))
+       brr = lapack_matrix_vector('N', V, eigenvectors(:, j))
        correction(:, j) = matmul(arr, brr) / (eigenvalues(j) - mtx(j, j))       
     end do
 
