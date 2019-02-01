@@ -1,7 +1,7 @@
 module benchmark
 
   use numeric_kinds, only: dp
-  use Davidson, only: eigensolver, generate_diagonal_dominant
+  use Davidson, only: generalized_eigensolver, generate_diagonal_dominant
 
   implicit none
 
@@ -63,7 +63,7 @@ contains
     allocate(eigenvectors(dim, lowest))
     print *, "Davidson method: ", method, " dimension: ", dim
     call cpu_time(t1)
-    call eigensolver(mtx, eigenvalues, eigenvectors, 3, method, 1000, 1d-8, iter_i)
+    call generalized_eigensolver(mtx, eigenvalues, eigenvectors, 3, method, 1000, 1d-8, iter_i)
     call cpu_time(t2)
     dt = t2 - t1
     print *, "time: ", dt

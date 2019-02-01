@@ -1,7 +1,7 @@
 program main
   
   use numeric_kinds, only: dp
-  use davidson, only: eigensolver, norm, lapack_eigensolver, generate_diagonal_dominant
+  use davidson, only: generalized_eigensolver, norm, lapack_generalized_eigensolver, generate_diagonal_dominant
   use test_utils, only: diagonal
 
   implicit none
@@ -16,8 +16,8 @@ program main
   ! mtx = read_matrix("tests/matrix.txt", 100)
   mtx = generate_diagonal_dominant(50, 1d-3)
 
-  call eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 3, "GJD", 1000, 1d-8, iter_i)
-  call eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 1000, 1d-8, iter_i)
+  call generalized_eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 3, "GJD", 1000, 1d-8, iter_i)
+  call generalized_eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 1000, 1d-8, iter_i)
 
   print *, "Test 1"
   test_norm_eigenvalues = norm(eigenvalues_GJD - eigenvalues_DPR)
