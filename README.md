@@ -23,7 +23,7 @@ of `1e-8` and `100` maximum iteration.
 ```fortran
 program main
   use numeric_kinds, only: dp
-  use davidson, only: eigensolver, generate_diagonal_dominant
+  use davidson, only: generalized_eigensolver, generate_diagonal_dominant
  
   implicit none
 
@@ -32,7 +32,8 @@ program main
   real(dp), dimension(20, 3) :: eigenvectors
 
   mtx = generate_diagonal_dominant(20, 1d-4)
-  call eigensolver(mtx, eigenvalues, eigenvectors, 3, "GJD", 100, 1d-8)
+  stx = generate_diagonal_dominant(20, 1d-4, 1)
+  call generalized_eigensolver(mtx, eigenvalues, eigenvectors, 3, "GJD", 100, 1d-8, stx)
   print *, eigenvalues
   print *, eigenvectors
 

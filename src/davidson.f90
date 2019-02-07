@@ -8,10 +8,11 @@ module davidson
   !> \private
   private :: eye, lapack_solver, lapack_qr, concatenate
   !> \public
-  public :: eigensolver, generate_diagonal_dominant, norm, lapack_eigensolver
+  public :: generalized_eigensolver, generate_diagonal_dominant, norm, lapack_generalized_eigensolver
   
   interface
-     module function compute_correction(mtx, V, eigenvalues, eigenvectors, method) &
+
+     module function compute_correction_generalized(mtx, V, eigenvalues, eigenvectors, method, stx) &
           result(correction)
        !> compute the correction vector using a given `method` for the Davidson algorithm
        !> See correction_methods submodule for the implementations
@@ -23,24 +24,25 @@ module davidson
        
        real(dp), dimension(:), intent(in) :: eigenvalues
        real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
+       real(dp), dimension(:, :), intent(in), optional :: stx
        character(len=*), optional, intent(in) :: method
        real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
        
-       
-     end function compute_correction
+     end function compute_correction_generalized
      
   end interface
   
 contains
   
-  subroutine eigensolver(mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
-       tolerance, iters)
+  subroutine generalized_eigensolver(mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
+       tolerance, iters, stx)
     !> The current implementation uses a general  davidson algorithm, meaning
     !> that it compute all the eigenvalues simultaneusly using a block approach.
     !> The family of Davidson algorithm only differ in the way that the correction
     !> vector is computed.
     
     !> \param mtx: Matrix to diagonalize
+    !> \param stx: overlap matrix
     !> \param eigenvalues: Computed eigenvalues
     !> \param ritz_vectors: approximation to the eigenvectors
     !> \param lowest: Number of lowest eigenvalues/ritz_vectors to compute
@@ -57,6 +59,7 @@ contains
     ! input/output variable
     integer, intent(in) :: lowest
     real(dp), dimension(:, :), intent(in) :: mtx
+    real(dp), dimension(:, :), intent(in), optional :: stx
     real(dp), dimension(lowest), intent(out) :: eigenvalues
     real(dp), dimension(:, :), intent(out) :: ritz_vectors
     integer, intent(in) :: max_iters
@@ -73,14 +76,20 @@ contains
 
     ! Working arrays
     real(dp), dimension(:), allocatable :: eigenvalues_sub
-    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, projected, V
+    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V
+
+    ! generalize problem
+    logical :: gev 
 
     ! Iteration subpsace dimension
     dim_sub = lowest + (lowest / 2)
 
     ! maximum dimension of the basis for the subspace
     max_dim = size(mtx, 2) / 2
-    
+
+    ! generalied problem
+    gev = present(stx)
+
     ! 1. Variables initialization
     V = eye(size(mtx, 1), dim_sub) ! Initial orthonormal basis
 
@@ -88,8 +97,12 @@ contains
     outer_loop: do i=1, max_iters
 
        ! 2. Generate subpace matrix problem by projecting into V
-       projected = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
-       
+       mtx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
+
+       if(gev) then
+        stx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', stx, V))
+       end if
+
        ! 3. compute the eigenvalues and their corresponding ritz_vectors
        ! for the projected matrix using lapack
        call check_deallocate_matrix(eigenvectors_sub)
@@ -99,15 +112,24 @@ contains
        end if
 
        ! allocate(eigenvectors_sub(size(projected, 1), size(projected,2)))
-       allocate(eigenvalues_sub(size(projected, 1)))
-       allocate(eigenvectors_sub(size(projected, 1), size(projected, 2)))
+       allocate(eigenvalues_sub(size(mtx_proj, 1)))
+       allocate(eigenvectors_sub(size(mtx_proj, 1), size(mtx_proj, 2)))
 
-       call lapack_eigensolver(projected, eigenvalues_sub, eigenvectors_sub)
+
+       if (gev) then
+        call lapack_generalized_eigensolver(mtx_proj, eigenvalues_sub, eigenvectors_sub, stx_proj)
+       else
+        call lapack_generalized_eigensolver(mtx_proj, eigenvalues_sub, eigenvectors_sub)
+       end if
 
        ! 4. Check for convergence
        ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
        do j=1,lowest
-          guess = eigenvalues_sub(j) * ritz_vectors(:, j)
+          if(gev) then
+            guess = eigenvalues_sub(j) * lapack_matrix_vector('N',stx,ritz_vectors(:, j))
+          else
+            guess = eigenvalues_sub(j) * ritz_vectors(:, j)
+          end if
           rs = lapack_matrix_vector('N', mtx, ritz_vectors(:, j)) - guess
           errors(j) = norm(rs)
        end do
@@ -119,10 +141,17 @@ contains
        
        ! 5. Add the correction vectors to the current basis
        if (size(V, 2) <= max_dim) then
+
           ! append correction to the current basis
           call check_deallocate_matrix(correction)
           allocate(correction(size(mtx, 1), size(V, 2)))
-          correction = compute_correction(mtx, V, eigenvalues_sub, eigenvectors_sub, method)
+
+          if(gev) then
+            correction = compute_correction_generalized(mtx, V, eigenvalues_sub, eigenvectors_sub, method, stx)
+          else
+            correction = compute_correction_generalized(mtx, V, eigenvalues_sub, eigenvectors_sub, method)
+          end if
+
           ! 6. Increase Basis size
           call concatenate(V, correction)
           
@@ -152,12 +181,13 @@ contains
 
     deallocate(eigenvalues_sub, eigenvectors_sub, V)
     
-  end subroutine eigensolver
+  end subroutine generalized_eigensolver
 
-  subroutine lapack_eigensolver(mtx, eigenvalues, eigenvectors)
-    !> Call the DSYEV subroutine lapack to compute ALL the eigenvalues
+  subroutine lapack_generalized_eigensolver(mtx, eigenvalues, eigenvectors, stx)
+    !> Call the DSYGV subroutine lapack to compute ALL the eigenvalues
     !> and corresponding eigenvectors of mtx
     !> \param mtx: Matrix to diaogonalize
+    !> \param stx: Overlap Matrix to diaogonalize
     !> \param eigenvalues: lowest eigenvalues
     !> \param eigenvectors: corresponding eigenvectors
     !> \return eigenvalues/eigenvectors
@@ -165,23 +195,32 @@ contains
     ! input/output
     implicit none
     real(dp), dimension(:, :), intent(in) :: mtx
+    real(dp), dimension(:, :), intent(in), optional :: stx
     real(dp), dimension(size(mtx, 1)), intent(inout) :: eigenvalues
     real(dp), dimension(size(mtx, 1), size(mtx, 2)), intent(inout) :: eigenvectors
 
     ! Local variables
-    integer :: dim, info, lwork
+    integer :: dim, info, lwork, itype = 1
+    logical :: gev
+
      ! ALL the eigenvalues of the subpace (re, im)
     real(dp), dimension(size(mtx, 1)) :: eigenvalues_work
     real(dp), dimension(:), allocatable :: work ! workspace, see lapack documentation
     
     ! ! dimension of the guess space
     dim = size(mtx, 1)
-    
+    gev = present(stx)
+
     ! Query size of the optimal workspace
     allocate(work(1))
     
-    call DSYEV("V", "U", dim, mtx, dim, eigenvalues_work, work, -1, info)
-    call check_lapack_call(info, "DSYEV")
+    if (gev) then
+      call DSYGV(itype,"V", "U", dim, mtx, dim, stx, dim, eigenvalues_work, work, -1, info)
+      call check_lapack_call(info, "DSYGV")
+    else
+      call DSYEV("V", "U", dim, mtx, dim, eigenvalues_work, work, -1, info)
+      call check_lapack_call(info, "DSYEV")
+    end if
 
     ! Allocate memory for the workspace
     lwork = max(1, int(work(1)))
@@ -189,8 +228,13 @@ contains
     allocate(work(lwork))
 
     ! Compute Eigenvalues
-    call DSYEV("V", "U", dim, mtx, dim, eigenvalues_work, work, lwork, info)
-    call check_lapack_call(info, "DSYEV")
+    if (present(stx)) then
+      call DSYGV(itype,"V", "U", dim, mtx, dim, stx, dim, eigenvalues_work, work, lwork, info)
+      call check_lapack_call(info, "DSYGV")
+    else
+      call DSYEV("V", "U", dim, mtx, dim, eigenvalues_work, work, lwork, info)
+      call check_lapack_call(info, "DSYEV")
+    end if
 
     ! Sort the eigenvalues and eigenvectors of the basis
     eigenvalues = eigenvalues_work
@@ -199,7 +243,7 @@ contains
     ! release memory
     deallocate(work)
     
-  end subroutine lapack_eigensolver
+  end subroutine lapack_generalized_eigensolver
 
 
   subroutine lapack_qr(basis)
@@ -487,13 +531,14 @@ contains
     arr(:, dim_cols + 1:) = brr
 
   end subroutine concatenate
-  
-  function generate_diagonal_dominant(m, sparsity) result(arr)
+    
+  function generate_diagonal_dominant(m, sparsity, diag_val) result(arr)
     !> Generate a diagonal dominant square matrix of dimension m
     !> \param m: dimension of the matrix
     !> \param sparsity: magnitude order of the off-diagonal values
       
     integer, intent(in) :: m ! size of the square matrix
+    real(dp), optional :: diag_val
     integer :: i, j
     real(dp) :: sparsity 
     real(dp), dimension(m, m) :: arr
@@ -505,7 +550,11 @@ contains
           if (i > j) then
              arr(i, j) = arr(j, i)
           else if(i == j) then
+            if (present(diag_val))then
+              arr(i,i) = diag_val
+            else
              arr(i, i) = i
+            end if
           end if
        end do
     end do
@@ -537,7 +586,7 @@ contains
 end module davidson
 
 
-submodule (davidson) correction_methods
+submodule (davidson) correction_methods_generalized
   !> submodule containing the implementations of different kind
   !> algorithms to compute the correction vectors for the Davidson's diagonalization
 
@@ -545,61 +594,87 @@ submodule (davidson) correction_methods
   
 contains
 
-  module function compute_correction(mtx, V, eigenvalues, eigenvectors, method) &
+  module function compute_correction_generalized(mtx, V, eigenvalues, eigenvectors, method, stx) &
        result(correction)
     !> see interface in davidson module
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
+    real(dp), dimension(:, :), intent(in), optional :: stx
     character(len=*), optional,intent(in) :: method
+    logical :: gev 
 
     ! local variables
     character(len=10) :: opt 
     real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
 
     !check optional arguments
+    gev = present(stx)
     opt="DPR"
     if (present(method)) opt=trim(method)
     
     select case (method)
     case ("DPR")
-       correction = compute_DPR(mtx, V, eigenvalues, eigenvectors)
+      if(gev) then
+       correction = compute_DPR_generalized(mtx, V, eigenvalues, eigenvectors, stx)
+      else
+        correction = compute_DPR_generalized(mtx, V, eigenvalues, eigenvectors)
+      end if
     case ("GJD")
-       correction = compute_GJD(mtx, V, eigenvalues, eigenvectors)
+      if(gev) then
+       correction = compute_GJD_generalized(mtx, V, eigenvalues, eigenvectors, stx)
+      else
+        correction = compute_GJD_generalized(mtx, V, eigenvalues, eigenvectors)
+      end if
     end select
     
-  end function compute_correction
+  end function compute_correction_generalized
 
-  function compute_DPR(mtx, V, eigenvalues, eigenvectors) result(correction)
+  function compute_DPR_generalized(mtx, V, eigenvalues, eigenvectors, stx) result(correction)
     !> compute Diagonal-Preconditioned-Residue (DPR) correction
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
+    real(dp), dimension(:, :), intent(in), optional ::  stx 
     real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
+
     ! local variables
     integer :: j, m
     real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: diag, arr
     real(dp), dimension(size(mtx, 1)) :: brr
+    real(dp) :: sdiag
+    logical :: gev
 
     ! shape of matrix
     m = size(mtx, 1)
-    
+    gev = (present(stx))
+    sdiag  = 1.0
+
     do j=1, size(V, 2)
-       diag = eye(m , m, eigenvalues(j))
+       if(gev) then
+        diag = eigenvalues(j) * stx
+       else
+        diag = eye(m , m, eigenvalues(j))
+       end if
        arr = mtx - diag
        brr = lapack_matrix_vector('N', V, eigenvectors(:, j))
+       if(gev) then
+        sdiag = stx(j,j)
+       end if
        correction(:, j) = lapack_matrix_vector('N', arr, brr) / (eigenvalues(j) - mtx(j, j))
     end do
 
-  end function compute_DPR
+  end function compute_DPR_generalized
 
-  function compute_GJD(mtx, V, eigenvalues, eigenvectors) result(correction)
+  function compute_GJD_generalized(mtx, V, eigenvalues, eigenvectors, stx) result(correction)
     !> Compute the Generalized Jacobi Davidson (GJD) correction
     
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
+    real(dp), dimension(:, :), intent(in), optional :: stx
     real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
 
     ! local variables
     integer :: k, m
+    logical :: gev
     real(dp), dimension(size(mtx, 1), 1) :: rs
     real(dp), dimension(size(mtx, 1), size(V, 2)) :: ritz_vectors
     real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: arr, xs, ys
@@ -608,20 +683,25 @@ contains
     ! Diagonal matrix
     m = size(mtx, 1)
     ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors)
+
+    gev = present(stx)
+
     do k=1, size(V, 2)
        rs(:, 1) = ritz_vectors(:, k)
        xs = eye(m, m) - lapack_matmul('N', 'T', rs, rs)
-       ys = substract_from_diagonal(mtx, eigenvalues(k))
+       if(gev) then
+        ys = mtx - eigenvalues(k)*stx
+       else
+         ys = substract_from_diagonal(mtx, eigenvalues(k))
+       end if
        arr = lapack_matmul('N', 'N', xs, lapack_matmul('N', 'N', ys, xs))
        brr = -rs
        
        call lapack_solver(arr, brr)
        correction(:, k) = brr(:, 1)
     end do
-
-
     
-  end function compute_GJD
+  end function compute_GJD_generalized
 
   function substract_from_diagonal(mtx, alpha) result(arr)
     !> susbstract an scalar from the diagonal of a matrix
@@ -639,4 +719,4 @@ contains
     
   end function substract_from_diagonal
   
-end submodule correction_methods
+end submodule correction_methods_generalized
