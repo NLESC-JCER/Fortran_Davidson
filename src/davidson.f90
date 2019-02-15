@@ -656,12 +656,15 @@ contains
        end if
        arr = mtx - diag
        brr = lapack_matrix_vector('N', V, eigenvectors(:, j))
-       if(gev) then
-        sdiag = stx(j,j)
-       end if
+      
        correction(:, j) = lapack_matrix_vector('N', arr, brr) 
+
        do ii=1,size(correction,1)
-        correction(ii, j) = correction(ii, j) / (eigenvalues(j) - mtx(ii, ii))
+        if (gev) then
+          correction(ii, j) = correction(ii, j) / (eigenvalues(j) * stx(ii,ii) - mtx(ii, ii))
+        else 
+          correction(ii, j) = correction(ii, j) / (eigenvalues(j)  - mtx(ii, ii))
+        end if
        end do
     end do
 
