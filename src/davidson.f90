@@ -35,7 +35,7 @@ module davidson
 contains
   
   subroutine generalized_eigensolver(mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
-       tolerance, iters, stx)
+        tolerance, iters, max_dim_sub, stx)
     !> The current implementation uses a general  davidson algorithm, meaning
     !> that it compute all the eigenvalues simultaneusly using a block approach.
     !> The family of Davidson algorithm only differ in the way that the correction
@@ -51,6 +51,7 @@ contains
     !>    DPR: Diagonal-Preconditioned-Residue
     !>    GJD: Generalized Jacobi Davidson
     !> \param max_iters: Maximum number of iterations
+    !> \param max_dim_sub: maximum dimension of the subspace search
     !> \param tolerance: norm-2 error of the eigenvalues
     !> \param method: Method to compute the correction vectors
     !> \param iters: Number of iterations until convergence
@@ -63,6 +64,7 @@ contains
     real(dp), dimension(lowest), intent(out) :: eigenvalues
     real(dp), dimension(:, :), intent(out) :: ritz_vectors
     integer, intent(in) :: max_iters
+    integer, intent(in), optional :: max_dim_sub
     real(dp), intent(in) :: tolerance
     character(len=*), intent(in) :: method
     integer, intent(out) :: iters
@@ -82,10 +84,14 @@ contains
     logical :: gev 
 
     ! Iteration subpsace dimension
-    dim_sub = lowest + (lowest / 2)
+    dim_sub = lowest * 2
 
     ! maximum dimension of the basis for the subspace
-    max_dim = size(mtx, 2) / 2
+    if (present(max_dim_sub)) then
+       max_dim  = max_dim_sub
+    else
+       max_dim = lowest * 10
+    endif
 
     ! generalied problem
     gev = present(stx)
