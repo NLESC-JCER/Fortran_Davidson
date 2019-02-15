@@ -637,7 +637,7 @@ contains
     real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
 
     ! local variables
-    integer :: j, m
+    integer :: ii,j, m
     real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: diag, arr
     real(dp), dimension(size(mtx, 1)) :: brr
     real(dp) :: sdiag
@@ -656,10 +656,16 @@ contains
        end if
        arr = mtx - diag
        brr = lapack_matrix_vector('N', V, eigenvectors(:, j))
-       if(gev) then
-        sdiag = stx(j,j)
-       end if
-       correction(:, j) = lapack_matrix_vector('N', arr, brr) / (eigenvalues(j) - mtx(j, j))
+      
+       correction(:, j) = lapack_matrix_vector('N', arr, brr) 
+
+       do ii=1,size(correction,1)
+        if (gev) then
+          correction(ii, j) = correction(ii, j) / (eigenvalues(j) * stx(ii,ii) - mtx(ii, ii))
+        else 
+          correction(ii, j) = correction(ii, j) / (eigenvalues(j)  - mtx(ii, ii))
+        end if
+       end do
     end do
 
   end function compute_DPR_generalized
