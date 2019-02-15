@@ -35,7 +35,7 @@ module davidson
 contains
   
   subroutine generalized_eigensolver(mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
-        max_dim_sub, tolerance, iters, stx)
+        tolerance, iters, max_dim_sub, stx)
     !> The current implementation uses a general  davidson algorithm, meaning
     !> that it compute all the eigenvalues simultaneusly using a block approach.
     !> The family of Davidson algorithm only differ in the way that the correction
