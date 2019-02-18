@@ -124,7 +124,7 @@ contains
     gev = present(stx)
 
     ! 1. Variables initialization
-    V = eye(size(mtx, 1), dim_sub) ! Initial orthonormal basis
+    V = eye(size(ritz_vectors, 1), dim_sub) ! Initial orthonormal basis
 
 
    ! 2. Generate subpace matrix problem by projecting into V
@@ -278,12 +278,12 @@ contains
     ! Function to compute the target matrix on the fly
     interface
        function fun_mtx(i) result(vec)
-         !> \brief Fucntion to compute the optional mtx on the fly
+         !> \brief Function to compute the optional mtx on the fly
          !> \param[in] i column/row to compute from mtx
          !> \param vec column/row from mtx
          use numeric_kinds, only: dp
          integer, intent(in) :: i
-         real(dp) :: vec
+         real(dp), dimension(size(ritz_vectors, 1)) :: vec
 
        end function fun_mtx
 
@@ -293,26 +293,25 @@ contains
          !> \param vec column/row from stx
          use numeric_kinds, only: dp
          integer, intent(in) :: i
-         real(dp) :: vec
+         real(dp), dimension(size(ritz_vectors, 1)) :: vec
 
        end function fun_stx
     end interface
     
     !local variables
-    integer :: dim_sub, max_dim
+    integer :: dim_mtx, dim_sub, max_dim, i, j
     
     ! ! Basis of subspace of approximants
-    ! real(dp), dimension(size(mtx, 1)) :: guess, rs
-    ! real(dp), dimension(lowest):: errors
+    real(dp), dimension(size(ritz_vectors, 1)) :: guess, rs
+    real(dp), dimension(lowest):: errors
 
     ! ! Working arrays
-    ! real(dp), dimension(:), allocatable :: eigenvalues_sub
-    real(dp), dimension(:, :), allocatable :: mtx_proj, stx_proj, V
-    ! real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, 
+    real(dp), dimension(:), allocatable :: eigenvalues_sub
+    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V
 
     ! generalize problem
     logical :: gev 
-
+    
     ! Iteration subpsace dimension
     dim_sub = lowest * 2
 
@@ -323,8 +322,11 @@ contains
        max_dim = lowest * 10
     endif
 
+    ! dimension of the matrix
+    dim_mtx = size(ritz_vectors, 1)
+    
     ! 1. Variables initialization
-    V = eye(size(ritz_vectors, 1), dim_sub) ! Initial orthonormal basis
+    V = eye(dim_mtx, dim_sub) ! Initial orthonormal basis
 
    ! 2. Generate subspace matrix problem by projecting into V
     mtx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_mtx, V))
@@ -332,6 +334,108 @@ contains
     if(gev) then
        stx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_stx, V))
     end if
+
+        ! ! Outer loop block Davidson schema
+    outer_loop: do i=1, max_iters
+
+       ! 3. compute the eigenvalues and their corresponding ritz_vectors
+       ! for the projected matrix using lapack
+       call check_deallocate_matrix(eigenvectors_sub)
+       
+       if (allocated(eigenvalues_sub)) then
+          deallocate(eigenvalues_sub)
+       end if
+
+       ! allocate(eigenvectors_sub(size(projected, 1), size(projected,2)))
+       allocate(eigenvalues_sub(size(mtx_proj, 1)))
+       allocate(eigenvectors_sub(size(mtx_proj, 1), size(mtx_proj, 2)))
+
+
+       if (gev) then
+        call lapack_generalized_eigensolver(mtx_proj, eigenvalues_sub, eigenvectors_sub, stx_proj)
+       else
+        call lapack_generalized_eigensolver(mtx_proj, eigenvalues_sub, eigenvectors_sub)
+       end if
+
+       ! 4. Check for convergence
+       ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
+       do j=1,lowest
+          if(gev) then
+            guess = eigenvalues_sub(j) * free_matrix_vector(fun_stx, ritz_vectors(:, j), dim_mtx)
+          else
+            guess = eigenvalues_sub(j) * ritz_vectors(:, j)
+          end if
+          rs = free_matrix_vector(fun_mtx, ritz_vectors(:, j), dim_mtx) - guess
+          errors(j) = norm(rs)
+       end do
+
+       if (all(errors < tolerance)) then
+          iters = i
+          exit
+       end if
+       
+       ! 5. Add the correction vectors to the current basis
+       if (size(V, 2) <= max_dim) then
+
+          ! append correction to the current basis
+          call check_deallocate_matrix(correction)
+          allocate(correction(size(ritz_vectors, 1), size(V, 2)))
+
+          ! if(gev) then
+          !   correction = compute_correction_generalized(mtx, V, eigenvalues_sub, eigenvectors_sub, method, stx)
+          ! else
+          !   correction = compute_correction_generalized(mtx, V, eigenvalues_sub, eigenvectors_sub, method)
+          ! end if
+
+
+          ! ! 6. Increase Basis size
+          ! call concatenate(V, correction)
+       
+          ! ! 7. Orthogonalize basis
+          ! call lapack_qr(V)
+          
+
+          ! ! 8. Update the the projection 
+          ! call update_projection(mtx, V, mtx_proj)
+          ! if (gev) then
+          !    call update_projection(stx, V, stx_proj)
+          !  end if
+
+       else
+
+          ! 6. Otherwise reduce the basis of the subspace to the current correction
+          V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :dim_sub))
+
+          ! we refresh the projected matrices
+          mtx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_mtx, V))
+
+          if(gev) then
+           stx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_stx, V))
+          end if
+
+       end if
+
+    end do outer_loop
+
+    !  8. Check convergence
+    if (i > max_iters / dim_sub) then
+       print *, "Warning: Algorithm did not converge!!"
+    end if
+
+    
+    ! Select the lowest eigenvalues and their corresponding ritz_vectors
+    ! They are sort in increasing order
+    eigenvalues = eigenvalues_sub(:lowest)
+    
+    ! Free memory
+    call check_deallocate_matrix(correction)
+    deallocate(eigenvalues_sub, eigenvectors_sub, V, mtx_proj)
+
+    ! free optional matrix
+    if (gev) then
+       call check_deallocate_matrix(stx_proj)
+    endif
+
     
   end subroutine generalized_eigensolver_free
 
@@ -621,7 +725,7 @@ contains
          !> \param vec column/row from mtx
          use numeric_kinds, only: dp
          integer, intent(in) :: i
-         real(dp) :: vec
+         real(dp), dimension(size(array, 1)) :: vec
 
        end function fun
 
@@ -639,7 +743,7 @@ contains
     do i = 1, dim1
        vec = fun(i)
        do j = 1, dim2
-          mtx(i, j) = dot_product(vec, array(j, :))
+          mtx(i, j) = dot_product(vec, array(:, j))
        end do
     end do
   !$OMP END PARALLEL DO
@@ -682,6 +786,43 @@ contains
     
 
   end function lapack_matrix_vector
+
+
+  function free_matrix_vector(fun, vector, dim_result) result(rs)
+    !> \brief perform a matrix vector multiplcation computing the matrix on the fly
+    !> \param[in] fun Function to compute a matrix on the fly
+    !> \param[in] vector to multiply with fun
+    !> \return resulting matrix
+
+    ! input/output
+    implicit none
+    integer, intent(in) :: dim_result
+    real(dp), dimension(:), intent(in) :: vector
+    real(dp), dimension(dim_result) :: rs
+
+    interface
+       function fun(i) result(vec)
+         !> \brief Fucntion to compute the matrix `mtx` on the fly
+         !> \param[in] i column/row to compute from `mtx`
+         !> \param vec column/row from mtx
+         use numeric_kinds, only: dp
+         integer, intent(in) :: i
+         real(dp), dimension(size(vector, 1)) :: vec
+
+       end function fun
+    end interface
+
+    ! local variables
+    integer :: i
+
+    !$OMP PARALLEL DO
+    do i = 1, dim_result
+       rs(i) = dot_product(fun(i), vector)
+    end do
+  !$OMP END PARALLEL DO
+
+  end function free_matrix_vector
+
 
   subroutine check_deallocate_matrix(mtx)
     !> deallocate a matrix if allocated
