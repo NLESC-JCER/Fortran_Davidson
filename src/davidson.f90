@@ -147,7 +147,6 @@ contains
           call check_deallocate_matrix(correction)
           allocate(correction(size(mtx, 1), size(V, 2)))
 
-
           if(gev) then
             correction = compute_correction_generalized(mtx, V, eigenvalues_sub, eigenvectors_sub, method, stx)
           else
@@ -169,6 +168,7 @@ contains
            end if
 
        else
+
           ! 6. Otherwise reduce the basis of the subspace to the current correction
           V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :dim_sub))
 
@@ -268,8 +268,11 @@ contains
     ! local copy of the matrices
     allocate(mtx_copy(dim,dim))
     mtx_copy = mtx
-    allocate(stx_copy(dim,dim))
-    stx_copy = stx
+
+    if (gev) then
+      allocate(stx_copy(dim,dim))
+      stx_copy = stx
+    end if
 
     ! Query size of the optimal workspace
     allocate(work(1))
@@ -303,7 +306,9 @@ contains
     ! release memory
     deallocate(work)
     deallocate(mtx_copy)
-    deallocate(stx_copy)
+    if (gev) then 
+      deallocate(stx_copy)
+    end if
     
   end subroutine lapack_generalized_eigensolver
 
