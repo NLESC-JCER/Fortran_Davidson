@@ -6,7 +6,7 @@ module davidson
   implicit none
 
   !> \private
-  private :: eye, lapack_solver, lapack_qr, concatenate
+  private
   !> \public
   public :: generalized_eigensolver, generate_diagonal_dominant, norm, lapack_generalized_eigensolver
   
@@ -36,7 +36,9 @@ module davidson
   !> \brief Solve a (general) eigenvalue problem using different types of Davidson algorithms.
 
   !> \param[in] mtx: Matrix to diagonalize
-  !> \param[in, opt] stx: overlap matrix
+  !> \param[in, opt] stx: Optional matrix for the general eigenvalue problem:
+  !> \f$ mtx \lambda = V stx \lambda \f$
+     
   !> \param[out] eigenvalues Computed eigenvalues
   !> \param[out] ritz_vectors approximation to the eigenvectors
   !> \param[in] lowest Number of lowest eigenvalues/ritz_vectors to compute
@@ -48,7 +50,7 @@ module davidson
   !> \param[in] tolerance norm-2 error of the eigenvalues
   !> \param[in] method: Method to compute the correction vectors
   !> \param[in, opt] max_dim_sub: maximum dimension of the subspace search   
-  !> \param iters[out]: Number of iterations until convergence
+  !> \param[out] iters: Number of iterations until convergence
   !> \return eigenvalues and ritz_vectors of the matrix `mtx`
 
      module procedure generalized_eigensolver_densed
@@ -64,21 +66,23 @@ contains
     !> The family of Davidson algorithm only differ in the way that the correction
     !> vector is computed.
     
-    !> \param mtx: Matrix to diagonalize
-    !> \param stx: overlap matrix
-    !> \param eigenvalues: Computed eigenvalues
-    !> \param ritz_vectors: approximation to the eigenvectors
-    !> \param lowest: Number of lowest eigenvalues/ritz_vectors to compute
-    !> \param method: Method to compute the correction vector. Available
+    !> \param[in] mtx: Matrix to diagonalize
+    !> \param[in, opt] Optional matrix to solve the general eigenvalue problem:
+    !> \f$ mtx \lambda = V stx \lambda \f$
+    !> \param[out] eigenvalues Computed eigenvalues
+    !> \param[out] ritz_vectors approximation to the eigenvectors
+    !> \param[in] lowest Number of lowest eigenvalues/ritz_vectors to compute
+    !> \param[in] method Method to compute the correction vector. Available
     !> methods are,
     !>    DPR: Diagonal-Preconditioned-Residue
     !>    GJD: Generalized Jacobi Davidson
-    !> \param max_iters: Maximum number of iterations
-    !> \param max_dim_sub: maximum dimension of the subspace search
-    !> \param tolerance: norm-2 error of the eigenvalues
-    !> \param method: Method to compute the correction vectors
-    !> \param iters: Number of iterations until convergence
+    !> \param[in] max_iters: Maximum number of iterations
+    !> \param[in] tolerance norm-2 error of the eigenvalues
+    !> \param[in] method: Method to compute the correction vectors
+    !> \param[in, opt] max_dim_sub: maximum dimension of the subspace search   
+    !> \param[out] iters: Number of iterations until convergence
     !> \return eigenvalues and ritz_vectors of the matrix `mtx`
+
     implicit none
     ! input/output variable
     integer, intent(in) :: lowest
@@ -222,7 +226,6 @@ contains
     ! Select the lowest eigenvalues and their corresponding ritz_vectors
     ! They are sort in increasing order
     eigenvalues = eigenvalues_sub(:lowest)
-
     
     ! Free memory
     call check_deallocate_matrix(correction)
@@ -231,8 +234,102 @@ contains
     
   end subroutine generalized_eigensolver_densed
 
+
+  subroutine generalized_eigensolver_free(fun_mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
+       tolerance, iters, max_dim_sub, fun_stx)
+    !> \brief use a pair of functions fun_mtx and fun_stx to compute on the fly the matrices to solve
+    !>  the general eigenvalue problem
+    !> The current implementation uses a general  davidson algorithm, meaning
+    !> that it compute all the eigenvalues simultaneusly using a block approach.
+    !> The family of Davidson algorithm only differ in the way that the correction
+    !> vector is computed.
+
+    !> \param[in] fun_mtx: Function to compute the Matrix to diagonalize
+    !> \param[in, opt] fun_stx: function to compute the optional general eigenvalue problem.
+    !> \param[out] eigenvalues Computed eigenvalues
+    !> \param[out] ritz_vectors approximation to the eigenvectors
+    !> \param[in] lowest Number of lowest eigenvalues/ritz_vectors to compute
+    !> \param[in] method Method to compute the correction vector. Available
+    !> methods are,
+    !>    DPR: Diagonal-Preconditioned-Residue
+    !>    GJD: Generalized Jacobi Davidson
+    !> \param[in] max_iters: Maximum number of iterations
+    !> \param[in] tolerance norm-2 error of the eigenvalues
+    !> \param[in] method: Method to compute the correction vectors
+    !> \param[in, opt] max_dim_sub: maximum dimension of the subspace search   
+    !> \param[out] iters: Number of iterations until convergence
+    !> \return eigenvalues and ritz_vectors of the matrix `mtx`
+    implicit none
+    ! input/output variable
+    integer, intent(in) :: lowest
+    real(dp), dimension(lowest), intent(out) :: eigenvalues
+    real(dp), dimension(:, :), intent(out) :: ritz_vectors
+    integer, intent(in) :: max_iters
+    integer, intent(in), optional :: max_dim_sub
+    real(dp), intent(in) :: tolerance
+    character(len=*), intent(in) :: method
+    integer, intent(out) :: iters
+
+    ! Function to compute the target matrix on the fly
+    interface
+       function fun_mtx(i) result(vec)
+         !> \brief Fucntion to compute the optional mtx on the fly
+         !> \param[in] i column/row to compute from mtx
+         !> \param vec column/row from mtx
+         use numeric_kinds, only: dp
+         integer, intent(in) :: i
+         real(dp) :: vec
+
+       end function fun_mtx
+
+       function fun_stx(i) result(vec)
+         !> \brief Fucntion to compute the optional stx matrix on the fly
+         !> \param[in] i column/row to compute from stx
+         !> \param vec column/row from stx
+         use numeric_kinds, only: dp
+         integer, intent(in) :: i
+         real :: vec
+
+       end function fun_stx
+    end interface
+    
+    !local variables
+    integer :: dim_sub, max_dim
+    
+    ! ! Basis of subspace of approximants
+    ! real(dp), dimension(size(mtx, 1)) :: guess, rs
+    ! real(dp), dimension(lowest):: errors
+
+    ! ! Working arrays
+    ! real(dp), dimension(:), allocatable :: eigenvalues_sub
+    real(dp), dimension(:, :), allocatable :: V, mtx_proj
+    ! real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V
+
+    ! generalize problem
+    logical :: gev 
+
+    ! Iteration subpsace dimension
+    dim_sub = lowest * 2
+
+    ! maximum dimension of the basis for the subspace
+    if (present(max_dim_sub)) then
+       max_dim  = max_dim_sub
+    else
+       max_dim = lowest * 10
+    endif
+
+    ! 1. Variables initialization
+    V = eye(size(ritz_vectors, 1), dim_sub) ! Initial orthonormal basis
+
+   ! 2. Generate subspace matrix problem by projecting into V
+    mtx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_mtx, V))
+    
+    
+  end subroutine generalized_eigensolver_free
+
+  
   subroutine update_projection(A, V, A_proj)
-    !> update the projected matrices
+    !> \brief update the projected matrices
     !> \param A: full matrix
     !> \param V: projector
     !> \param A_proj: projected matrix
@@ -261,6 +358,7 @@ contains
     call move_alloc(tmp_array, A_proj)
 
   end subroutine update_projection
+
 
   subroutine lapack_generalized_eigensolver(mtx, eigenvalues, eigenvectors, stx)
     !> Call the DSYGV subroutine lapack to compute ALL the eigenvalues
@@ -497,6 +595,48 @@ contains
 
   end function lapack_matmul
 
+  function free_matmul(fun, array) result (mtx)
+    !> \brief perform a matrix-matrix multiplication by generating a matrix on the fly using `fun`
+    !> \param[in] fun function to compute a matrix on the fly
+    !> \param[in] array matrix to multiply with fun
+    !> \return resulting matrix
+
+    ! input/output
+    implicit none
+    real(dp), dimension(:, :), intent(in) :: array
+    real(dp), dimension(size(array, 1), size(array, 2)) :: mtx
+
+    interface
+       function fun(i) result(vec)
+         !> \brief Fucntion to compute the matrix `mtx` on the fly
+         !> \param[in] i column/row to compute from `mtx`
+         !> \param vec column/row from mtx
+         use numeric_kinds, only: dp
+         integer, intent(in) :: i
+         real(dp) :: vec
+
+       end function fun
+
+    end interface
+
+    ! local variables
+    real(dp), dimension(size(array, 1)) :: vec
+    integer :: dim1, dim2, i, j
+
+    ! dimension of the square matrix computed on the fly
+    dim1 = size(array, 1)
+    dim2 = size(array, 2)
+
+    !$OMP PARALLEL DO
+    do i = 1, dim1
+       vec = fun(i)
+       do j = 1, dim2
+          mtx(i, j) = dot_product(vec, array(j, :))
+       end do
+    end do
+  !$OMP END PARALLEL DO
+    
+  end function free_matmul
 
   function lapack_matrix_vector(transA, mtx, vector, alpha) result(rs)
     !> perform the Matrix vector multiplication alpha * mtx ^ (transA) * vector
