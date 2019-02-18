@@ -53,13 +53,13 @@ module davidson
   !> \param[out] iters: Number of iterations until convergence
   !> \return eigenvalues and ritz_vectors of the matrix `mtx`
 
-     module procedure generalized_eigensolver_densed
+     module procedure generalized_eigensolver_dense
 
   end interface generalized_eigensolver
      
 contains
   
-  subroutine generalized_eigensolver_densed(mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
+  subroutine generalized_eigensolver_dense(mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
         tolerance, iters, max_dim_sub, stx)
     !> The current implementation uses a general  davidson algorithm, meaning
     !> that it compute all the eigenvalues simultaneusly using a block approach.
@@ -195,9 +195,9 @@ contains
           
 
           ! 8. Update the the projection 
-          call update_projection_densed(mtx, V, mtx_proj)
+          call update_projection_dense(mtx, V, mtx_proj)
           if (gev) then
-             call update_projection_densed(stx, V, stx_proj)
+             call update_projection_dense(stx, V, stx_proj)
            end if
 
        else
@@ -236,7 +236,7 @@ contains
        call check_deallocate_matrix(stx_proj)
     endif
     
-  end subroutine generalized_eigensolver_densed
+  end subroutine generalized_eigensolver_dense
 
 
   
@@ -440,7 +440,7 @@ contains
   end subroutine generalized_eigensolver_free
 
   
-  subroutine update_projection_densed(A, V, A_proj)
+  subroutine update_projection_dense(A, V, A_proj)
     !> \brief update the projected matrices
     !> \param A: full matrix
     !> \param V: projector
@@ -470,7 +470,7 @@ contains
     call move_alloc(tmp_array, A_proj)
 
  
-  end subroutine update_projection_densed
+  end subroutine update_projection_dense
 
   subroutine update_projection_free(fun_A, V, A_proj)
     !> \brief update the projected matrices
