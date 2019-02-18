@@ -229,12 +229,17 @@ contains
     
     ! Free memory
     call check_deallocate_matrix(correction)
+    deallocate(eigenvalues_sub, eigenvectors_sub, V, mtx_proj)
 
-    deallocate(eigenvalues_sub, eigenvectors_sub, V)
+    ! free optional matrix
+    if (gev) then
+       call check_deallocate_matrix(stx_proj)
+    endif
     
   end subroutine generalized_eigensolver_densed
 
 
+  
   subroutine generalized_eigensolver_free(fun_mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
        tolerance, iters, max_dim_sub, fun_stx)
     !> \brief use a pair of functions fun_mtx and fun_stx to compute on the fly the matrices to solve
@@ -288,7 +293,7 @@ contains
          !> \param vec column/row from stx
          use numeric_kinds, only: dp
          integer, intent(in) :: i
-         real :: vec
+         real(dp) :: vec
 
        end function fun_stx
     end interface
@@ -302,8 +307,8 @@ contains
 
     ! ! Working arrays
     ! real(dp), dimension(:), allocatable :: eigenvalues_sub
-    real(dp), dimension(:, :), allocatable :: V, mtx_proj
-    ! real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V
+    real(dp), dimension(:, :), allocatable :: mtx_proj, stx_proj, V
+    ! real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, 
 
     ! generalize problem
     logical :: gev 
@@ -323,7 +328,10 @@ contains
 
    ! 2. Generate subspace matrix problem by projecting into V
     mtx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_mtx, V))
-    
+
+    if(gev) then
+       stx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_stx, V))
+    end if
     
   end subroutine generalized_eigensolver_free
 
