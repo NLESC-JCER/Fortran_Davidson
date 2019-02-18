@@ -31,7 +31,7 @@ module davidson
      end function compute_correction_generalized
      
   end interface
-  
+
   interface generalized_eigensolver
   !> \brief Solve a (general) eigenvalue problem using different types of Davidson algorithms.
 
@@ -195,9 +195,9 @@ contains
           
 
           ! 8. Update the the projection 
-          call update_projection(mtx, V, mtx_proj)
+          call update_projection_densed(mtx, V, mtx_proj)
           if (gev) then
-             call update_projection(stx, V, stx_proj)
+             call update_projection_densed(stx, V, stx_proj)
            end if
 
        else
@@ -388,18 +388,18 @@ contains
           ! end if
 
 
-          ! ! 6. Increase Basis size
-          ! call concatenate(V, correction)
+          ! 6. Increase Basis size
+          call concatenate(V, correction)
        
-          ! ! 7. Orthogonalize basis
-          ! call lapack_qr(V)
+          ! 7. Orthogonalize basis
+          call lapack_qr(V)
           
 
-          ! ! 8. Update the the projection 
-          ! call update_projection(mtx, V, mtx_proj)
-          ! if (gev) then
-          !    call update_projection(stx, V, stx_proj)
-          !  end if
+          ! 8. Update the the projection 
+          call update_projection_free(fun_mtx, V, mtx_proj)
+          if (gev) then
+             call update_projection_free(fun_stx, V, stx_proj)
+           end if
 
        else
 
@@ -440,7 +440,7 @@ contains
   end subroutine generalized_eigensolver_free
 
   
-  subroutine update_projection(A, V, A_proj)
+  subroutine update_projection_densed(A, V, A_proj)
     !> \brief update the projected matrices
     !> \param A: full matrix
     !> \param V: projector
@@ -469,7 +469,50 @@ contains
     deallocate(A_proj)
     call move_alloc(tmp_array, A_proj)
 
-  end subroutine update_projection
+ 
+  end subroutine update_projection_densed
+
+  subroutine update_projection_free(fun_A, V, A_proj)
+    !> \brief update the projected matrices
+    !> \param A: full matrix
+    !> \param V: projector
+    !> \param A_proj: projected matrix
+
+    implicit none
+    real(dp), dimension(:, :), intent(in) :: V
+    real(dp), dimension(:, :), intent(inout), allocatable :: A_proj
+    real(dp), dimension(:, :), allocatable :: tmp_array
+
+    interface
+       function fun_A(i) result(vec)
+         !> \brief Function to compute the optional mtx on the fly
+         !> \param[in] i column/row to compute from mtx
+         !> \param vec column/row from mtx
+         use numeric_kinds, only: dp
+         integer, intent(in) :: i
+         real(dp), dimension(size(V, 1)) :: vec
+         
+       end function fun_A
+    end interface
+    
+    ! local variables
+    integer :: nvec, old_dim
+
+    ! dimension of the matrices
+    nvec = size(V,2)
+    old_dim = size(A_proj,1)    
+
+    ! move to temporal array
+    allocate(tmp_array(nvec, nvec))
+    tmp_array(:old_dim, :old_dim) = A_proj
+    tmp_array(:,old_dim+1:) = lapack_matmul('T', 'N', V, free_matmul(fun_A, V(:, old_dim+1:)))
+    tmp_array( old_dim+1:,:old_dim ) = transpose(tmp_array(:old_dim, old_dim+1:))
+    
+    ! Move to new expanded matrix
+    deallocate(A_proj)
+    call move_alloc(tmp_array, A_proj)
+
+  end subroutine update_projection_free
 
 
   subroutine lapack_generalized_eigensolver(mtx, eigenvalues, eigenvectors, stx)
