@@ -122,15 +122,16 @@ contains
     ! 1. Variables initialization
     V = eye(size(mtx, 1), dim_sub) ! Initial orthonormal basis
 
+
+   ! 2. Generate subpace matrix problem by projecting into V
+   mtx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
+
+   if(gev) then
+    stx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', stx, V))
+   end if
+
     ! ! Outer loop block Davidson schema
     outer_loop: do i=1, max_iters
-
-       ! 2. Generate subpace matrix problem by projecting into V
-       mtx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
-
-       if(gev) then
-        stx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', stx, V))
-       end if
 
        ! 3. compute the eigenvalues and their corresponding ritz_vectors
        ! for the projected matrix using lapack
@@ -181,17 +182,35 @@ contains
             correction = compute_correction_generalized(mtx, V, eigenvalues_sub, eigenvectors_sub, method)
           end if
 
+
           ! 6. Increase Basis size
           call concatenate(V, correction)
+       
+          ! 7. Orthogonalize basis
+          call lapack_qr(V)
           
+
+          ! 8. Update the the projection 
+          call update_projection(mtx, V, mtx_proj)
+          if (gev) then
+             call update_projection(stx, V, stx_proj)
+           end if
+
        else
+
           ! 6. Otherwise reduce the basis of the subspace to the current correction
           V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :dim_sub))
+
+          ! we refresh the projected matrices
+          mtx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
+
+          if(gev) then
+           stx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', stx, V))
+          end if
+
        end if
 
-       ! 7. Orthogonalize basis
-       call lapack_qr(V)
-
+      
     end do outer_loop
 
     !  8. Check convergence
@@ -212,6 +231,37 @@ contains
     
   end subroutine generalized_eigensolver_densed
 
+  subroutine update_projection(A, V, A_proj)
+    !> update the projected matrices
+    !> \param A: full matrix
+    !> \param V: projector
+    !> \param A_proj: projected matrix
+
+    implicit none
+    real(dp), dimension(:, :), intent(in) :: A
+    real(dp), dimension(:, :), intent(in) :: V
+    real(dp), dimension(:, :), intent(inout), allocatable :: A_proj
+    real(dp), dimension(:, :), allocatable :: tmp_array
+
+    ! local variables
+    integer :: nvec, old_dim
+
+    ! dimension of the matrices
+    nvec = size(V,2)
+    old_dim = size(A_proj,1)    
+
+    ! move to temporal array
+    allocate(tmp_array(nvec, nvec))
+    tmp_array(:old_dim, :old_dim) = A_proj
+    tmp_array(:,old_dim+1:) = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', A, V(:, old_dim+1:)))
+    tmp_array( old_dim+1:,:old_dim ) = transpose(tmp_array(:old_dim, old_dim+1:))
+    
+    ! Move to new expanded matrix
+    deallocate(A_proj)
+    call move_alloc(tmp_array, A_proj)
+
+  end subroutine update_projection
+
   subroutine lapack_generalized_eigensolver(mtx, eigenvalues, eigenvectors, stx)
     !> Call the DSYGV subroutine lapack to compute ALL the eigenvalues
     !> and corresponding eigenvectors of mtx
@@ -228,6 +278,10 @@ contains
     real(dp), dimension(size(mtx, 1)), intent(inout) :: eigenvalues
     real(dp), dimension(size(mtx, 1), size(mtx, 2)), intent(inout) :: eigenvectors
 
+    real(dp), dimension(:, :), allocatable :: mtx_copy
+    real(dp), dimension(:, :), allocatable :: stx_copy
+
+
     ! Local variables
     integer :: dim, info, lwork, itype = 1
     logical :: gev
@@ -240,14 +294,23 @@ contains
     dim = size(mtx, 1)
     gev = present(stx)
 
+    ! local copy of the matrices
+    allocate(mtx_copy(dim,dim))
+    mtx_copy = mtx
+
+    if (gev) then
+      allocate(stx_copy(dim,dim))
+      stx_copy = stx
+    end if
+
     ! Query size of the optimal workspace
     allocate(work(1))
     
     if (gev) then
-      call DSYGV(itype,"V", "U", dim, mtx, dim, stx, dim, eigenvalues_work, work, -1, info)
+      call DSYGV(itype,"V", "U", dim, mtx_copy, dim, stx_copy, dim, eigenvalues_work, work, -1, info)
       call check_lapack_call(info, "DSYGV")
     else
-      call DSYEV("V", "U", dim, mtx, dim, eigenvalues_work, work, -1, info)
+      call DSYEV("V", "U", dim, mtx_copy, dim, eigenvalues_work, work, -1, info)
       call check_lapack_call(info, "DSYEV")
     end if
 
@@ -257,20 +320,24 @@ contains
     allocate(work(lwork))
 
     ! Compute Eigenvalues
-    if (present(stx)) then
-      call DSYGV(itype,"V", "U", dim, mtx, dim, stx, dim, eigenvalues_work, work, lwork, info)
+    if (gev) then
+      call DSYGV(itype,"V", "U", dim, mtx_copy, dim, stx_copy, dim, eigenvalues_work, work, lwork, info)
       call check_lapack_call(info, "DSYGV")
     else
-      call DSYEV("V", "U", dim, mtx, dim, eigenvalues_work, work, lwork, info)
+      call DSYEV("V", "U", dim, mtx_copy, dim, eigenvalues_work, work, lwork, info)
       call check_lapack_call(info, "DSYEV")
     end if
 
     ! Sort the eigenvalues and eigenvectors of the basis
     eigenvalues = eigenvalues_work
-    eigenvectors = mtx
+    eigenvectors = mtx_copy
     
     ! release memory
     deallocate(work)
+    deallocate(mtx_copy)
+    if (gev) then 
+      deallocate(stx_copy)
+    end if
     
   end subroutine lapack_generalized_eigensolver
 
@@ -533,6 +600,7 @@ contains
   end function norm
   
   subroutine concatenate(arr, brr)
+
     !> Concatenate two matrices
     !> \param arr: first array
     !> \param brr: second array
@@ -546,13 +614,14 @@ contains
     ! dimension
     dim_rows = size(arr, 1)
     dim_cols = size(arr, 2)
+
     ! Number of columns of the new matrix
     new_dim = dim_cols + size(brr, 2)
 
     ! move to temporal array
     allocate(tmp_array(dim_rows, new_dim))
     tmp_array(:, :dim_cols) = arr
-
+   
     ! Move to new expanded matrix
     deallocate(arr)
     call move_alloc(tmp_array, arr)
