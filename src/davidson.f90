@@ -32,9 +32,32 @@ module davidson
      
   end interface
   
+  interface generalized_eigensolver
+  !> \brief Solve a (general) eigenvalue problem using different types of Davidson algorithms.
+
+  !> \param[in] mtx: Matrix to diagonalize
+  !> \param[in, opt] stx: overlap matrix
+  !> \param[out] eigenvalues Computed eigenvalues
+  !> \param[out] ritz_vectors approximation to the eigenvectors
+  !> \param[in] lowest Number of lowest eigenvalues/ritz_vectors to compute
+  !> \param[in] method Method to compute the correction vector. Available
+  !> methods are,
+  !>    DPR: Diagonal-Preconditioned-Residue
+  !>    GJD: Generalized Jacobi Davidson
+  !> \param[in] max_iters: Maximum number of iterations
+  !> \param[in] tolerance norm-2 error of the eigenvalues
+  !> \param[in] method: Method to compute the correction vectors
+  !> \param[in, opt] max_dim_sub: maximum dimension of the subspace search   
+  !> \param iters[out]: Number of iterations until convergence
+  !> \return eigenvalues and ritz_vectors of the matrix `mtx`
+
+     module procedure generalized_eigensolver_densed
+
+  end interface generalized_eigensolver
+     
 contains
   
-  subroutine generalized_eigensolver(mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
+  subroutine generalized_eigensolver_densed(mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
         tolerance, iters, max_dim_sub, stx)
     !> The current implementation uses a general  davidson algorithm, meaning
     !> that it compute all the eigenvalues simultaneusly using a block approach.
@@ -187,7 +210,7 @@ contains
 
     deallocate(eigenvalues_sub, eigenvectors_sub, V)
     
-  end subroutine generalized_eigensolver
+  end subroutine generalized_eigensolver_densed
 
   subroutine lapack_generalized_eigensolver(mtx, eigenvalues, eigenvectors, stx)
     !> Call the DSYGV subroutine lapack to compute ALL the eigenvalues
