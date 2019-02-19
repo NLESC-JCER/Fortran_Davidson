@@ -12,15 +12,16 @@ module davidson
   
   interface
 
-     module function compute_correction_generalized(mtx, V, eigenvalues, eigenvectors, method, stx) &
+     module function compute_correction_generalized_dense(mtx, V, eigenvalues, eigenvectors, method, stx) &
           result(correction)
        !> compute the correction vector using a given `method` for the Davidson algorithm
        !> See correction_methods submodule for the implementations
-       !> \param mtx: Original matrix
-       !> \param V: Basis of the iteration subspace
-       !> \param eigenvalues: of the reduce problem
-       !> \param eigenvectors: of the reduce problem
-       !> \param method: name of the method to compute the correction
+       !> \param[in] mtx: Original matrix
+       !> \param[in] stx: Matrix to compute the general eigenvalue problem
+       !> \param[in] V: Basis of the iteration subspace
+       !> \param[in] eigenvalues: of the reduce problem
+       !> \param[in] eigenvectors: of the reduce problem
+       !> \param[in] method: name of the method to compute the correction
        
        real(dp), dimension(:), intent(in) :: eigenvalues
        real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
@@ -28,7 +29,7 @@ module davidson
        character(len=*), optional, intent(in) :: method
        real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
        
-     end function compute_correction_generalized
+     end function compute_correction_generalized_dense
      
   end interface
 
@@ -181,9 +182,9 @@ contains
           allocate(correction(size(mtx, 1), size(V, 2)))
 
           if(gev) then
-            correction = compute_correction_generalized(mtx, V, eigenvalues_sub, eigenvectors_sub, method, stx)
+            correction = compute_correction_generalized_dense(mtx, V, eigenvalues_sub, eigenvectors_sub, method, stx)
           else
-            correction = compute_correction_generalized(mtx, V, eigenvalues_sub, eigenvectors_sub, method)
+            correction = compute_correction_generalized_dense(mtx, V, eigenvalues_sub, eigenvectors_sub, method)
           end if
 
 
@@ -1016,7 +1017,7 @@ contains
 end module davidson
 
 
-submodule (davidson) correction_methods_generalized
+submodule (davidson) correction_methods_generalized_dense
   !> submodule containing the implementations of different kind
   !> algorithms to compute the correction vectors for the Davidson's diagonalization
 
@@ -1024,7 +1025,7 @@ submodule (davidson) correction_methods_generalized
   
 contains
 
-  module function compute_correction_generalized(mtx, V, eigenvalues, eigenvectors, method, stx) &
+  module function compute_correction_generalized_dense(mtx, V, eigenvalues, eigenvectors, method, stx) &
        result(correction)
     !> see interface in davidson module
     real(dp), dimension(:), intent(in) :: eigenvalues
@@ -1045,21 +1046,21 @@ contains
     select case (method)
     case ("DPR")
       if(gev) then
-       correction = compute_DPR_generalized(mtx, V, eigenvalues, eigenvectors, stx)
+       correction = compute_DPR_generalized_dense(mtx, V, eigenvalues, eigenvectors, stx)
       else
-        correction = compute_DPR_generalized(mtx, V, eigenvalues, eigenvectors)
+        correction = compute_DPR_generalized_dense(mtx, V, eigenvalues, eigenvectors)
       end if
     case ("GJD")
       if(gev) then
-       correction = compute_GJD_generalized(mtx, V, eigenvalues, eigenvectors, stx)
+       correction = compute_GJD_generalized_dense(mtx, V, eigenvalues, eigenvectors, stx)
       else
-        correction = compute_GJD_generalized(mtx, V, eigenvalues, eigenvectors)
+        correction = compute_GJD_generalized_dense(mtx, V, eigenvalues, eigenvectors)
       end if
     end select
     
-  end function compute_correction_generalized
+  end function compute_correction_generalized_dense
 
-  function compute_DPR_generalized(mtx, V, eigenvalues, eigenvectors, stx) result(correction)
+  function compute_DPR_generalized_dense(mtx, V, eigenvalues, eigenvectors, stx) result(correction)
     !> compute Diagonal-Preconditioned-Residue (DPR) correction
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
@@ -1098,9 +1099,9 @@ contains
        end do
     end do
 
-  end function compute_DPR_generalized
+  end function compute_DPR_generalized_dense
 
-  function compute_GJD_generalized(mtx, V, eigenvalues, eigenvectors, stx) result(correction)
+  function compute_GJD_generalized_dense(mtx, V, eigenvalues, eigenvectors, stx) result(correction)
     !> Compute the Generalized Jacobi Davidson (GJD) correction
     
     real(dp), dimension(:), intent(in) :: eigenvalues
@@ -1137,7 +1138,7 @@ contains
        correction(:, k) = brr(:, 1)
     end do
     
-  end function compute_GJD_generalized
+  end function compute_GJD_generalized_dense
 
   function substract_from_diagonal(mtx, alpha) result(arr)
     !> susbstract an scalar from the diagonal of a matrix
@@ -1155,4 +1156,4 @@ contains
     
   end function substract_from_diagonal
   
-end submodule correction_methods_generalized
+end submodule correction_methods_generalized_dense
