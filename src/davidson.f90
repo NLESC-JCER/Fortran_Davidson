@@ -22,7 +22,7 @@ module davidson
        !> \param[in] eigenvalues: of the reduce problem
        !> \param[in] eigenvectors: of the reduce problem
        !> \param[in] method: name of the method to compute the correction
-       
+ 
        real(dp), dimension(:), intent(in) :: eigenvalues
        real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
        real(dp), dimension(:, :), intent(in), optional :: stx
@@ -30,7 +30,35 @@ module davidson
        real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
        
      end function compute_correction_generalized_dense
-     
+
+
+     ! module function compute_DPR_free(fun_mtx, V, eigenvalues, eigenvectors) result(correction)
+     !   !> compute the correction vector using the DPR method for a matrix free diagonalization
+     !   !> See correction_methods submodule for the implementations
+     !   !> \param[in] fun_mtx: function to compute matrix
+     !   !> \param[in] V: Basis of the iteration subspace
+     !   !> \param[in] eigenvalues: of the reduce problem
+     !   !> \param[in] eigenvectors: of the reduce problem
+     !   !> \return correction matrix
+     !   real(dp), dimension(:), intent(in) :: eigenvalues
+     !   real(dp), dimension(:, :), intent(in) :: V, eigenvectors
+     !   real(dp), dimension(size(eigenvectors, 1), size(V, 2)) :: correction
+
+     !   interface
+     !      function fun_mtx(i, dim) result(vec)
+     !        !> \brief Function to compute the optional mtx on the fly
+     !        !> \param[in] i column/row to compute from mtx
+     !        !> \param vec column/row from mtx
+     !        use numeric_kinds, only: dp
+     !        integer, intent(in) :: i
+     !        integer, intent(in) :: dim
+     !        real(dp), dimension(dim) :: vec
+            
+     !      end function fun_mtx
+     !   end interface
+
+     ! end Function compute_DPR_free
+       
   end interface
 
   interface generalized_eigensolver
@@ -55,6 +83,7 @@ module davidson
   !> \return eigenvalues and ritz_vectors of the matrix `mtx`
 
      module procedure generalized_eigensolver_dense
+     module procedure generalized_eigensolver_free
 
   end interface generalized_eigensolver
      
@@ -278,23 +307,25 @@ contains
 
     ! Function to compute the target matrix on the fly
     interface
-       function fun_mtx(i) result(vec)
+       function fun_mtx(i, dim) result(vec)
          !> \brief Function to compute the optional mtx on the fly
          !> \param[in] i column/row to compute from mtx
          !> \param vec column/row from mtx
          use numeric_kinds, only: dp
          integer, intent(in) :: i
-         real(dp), dimension(size(ritz_vectors, 1)) :: vec
+         integer, intent(in) :: dim         
+         real(dp), dimension(dim) :: vec
 
        end function fun_mtx
 
-       function fun_stx(i) result(vec)
+       function fun_stx(i, dim) result(vec)
          !> \brief Fucntion to compute the optional stx matrix on the fly
          !> \param[in] i column/row to compute from stx
          !> \param vec column/row from stx
          use numeric_kinds, only: dp
          integer, intent(in) :: i
-         real(dp), dimension(size(ritz_vectors, 1)) :: vec
+         integer, intent(in) :: dim         
+         real(dp), dimension(dim) :: vec
 
        end function fun_stx
     end interface
@@ -440,6 +471,92 @@ contains
     
   end subroutine generalized_eigensolver_free
 
+  function compute_DPR_free(fun_mtx, V, eigenvalues, eigenvectors) result(correction)
+    !> compute the correction vector using the DPR method for a matrix free diagonalization
+    !> See correction_methods submodule for the implementations
+    !> \param[in] fun_mtx: function to compute matrix
+    !> \param[in] V: Basis of the iteration subspace
+    !> \param[in] eigenvalues: of the reduce problem
+    !> \param[in] eigenvectors: of the reduce problem
+    !> \return correction matrix
+
+    real(dp), dimension(:), intent(in) :: eigenvalues
+    real(dp), dimension(:, :), intent(in) :: V, eigenvectors
+    real(dp), dimension(size(eigenvectors, 1), size(V, 2)) :: correction
+
+    interface
+          function fun_mtx(i, dim) result(vec)
+            !> \brief Function to compute the optional mtx on the fly
+            !> \param[in] i column/row to compute from mtx
+            !> \param vec column/row from mtx
+            use numeric_kinds, only: dp
+            integer, intent(in) :: i
+            integer, intent(in) :: dim
+            real(dp), dimension(dim) :: vec
+            
+          end function fun_mtx
+       end interface
+
+    ! local variables
+    integer :: ii, j
+    real(dp), dimension(size(eigenvectors, 1)) :: diag, rs, vector
+
+    
+    do j=1, size(V, 2)
+       vector = lapack_matrix_vector('N', V, eigenvectors(:, j))
+       call compute_error(fun_mtx, eigenvalues(j), vector, rs, diag)
+       correction(:, j) = rs
+
+       do ii=1,size(correction,1)
+          correction(ii, j) = correction(ii, j) / (eigenvalues(j)  - diag(ii))
+       end do
+    end do
+
+  end function compute_DPR_free
+
+  subroutine compute_error(fun_mtx, eigenval, vector, rs, diag)
+    !> \brief compute the multiplication: (mtx - eigenval) * vector and
+    !> return the diagonal of the matrix
+    !> \param[in] fun_mtx: function to compute the matrix
+    !> \param[in] vector
+    !> \param[in] eigenval
+    !> \return correction vector
+    real(dp), dimension(:), intent(in) :: vector
+    real(dp), dimension(:), intent(out) :: diag, rs
+    real(dp) :: eigenval
+
+
+    ! local variables
+    integer :: i
+    real(dp), dimension(size(vector)) ::xs
+
+    interface
+       function fun_mtx(i, dim) result(vec)
+         !> \brief Function to compute the optional mtx on the fly
+         !> \param[in] i column/row to compute from mtx
+         !> \param[in] j optional second index
+         !> \param vec column/row from mtx
+         use numeric_kinds, only: dp
+         integer, intent(in) :: i
+         integer, intent(in) :: dim
+         real(dp), dimension(dim) :: vec
+         
+       end function fun_mtx
+    end interface
+
+    ! local variables
+    
+    !$OMP PARALLEL DO
+    do i = 1, size(vector)
+       xs = fun_mtx(i, size(vector))
+       diag(i) = xs(i)
+       xs(i) = diag(i) - eigenval
+       rs(i) = dot_product(xs, vector)
+    end do
+  !$OMP END PARALLEL DO
+
+  end subroutine compute_error
+
   
   subroutine update_projection_dense(A, V, A_proj)
     !> \brief update the projected matrices
@@ -485,13 +602,14 @@ contains
     real(dp), dimension(:, :), allocatable :: tmp_array
 
     interface
-       function fun_A(i) result(vec)
+       function fun_A(i, dim) result(vec)
          !> \brief Function to compute the optional mtx on the fly
          !> \param[in] i column/row to compute from mtx
          !> \param vec column/row from mtx
          use numeric_kinds, only: dp
          integer, intent(in) :: i
-         real(dp), dimension(size(V, 1)) :: vec
+         integer, intent(in) :: dim
+         real(dp), dimension(dim) :: vec
          
        end function fun_A
     end interface
@@ -763,13 +881,14 @@ contains
     real(dp), dimension(size(array, 1), size(array, 2)) :: mtx
 
     interface
-       function fun(i) result(vec)
+       function fun(i, dim) result(vec)
          !> \brief Fucntion to compute the matrix `mtx` on the fly
          !> \param[in] i column/row to compute from `mtx`
          !> \param vec column/row from mtx
          use numeric_kinds, only: dp
          integer, intent(in) :: i
-         real(dp), dimension(size(array, 1)) :: vec
+         integer, intent(in) :: dim         
+         real(dp), dimension(dim) :: vec
 
        end function fun
 
@@ -785,7 +904,7 @@ contains
 
     !$OMP PARALLEL DO
     do i = 1, dim1
-       vec = fun(i)
+       vec = fun(i, dim1)
        do j = 1, dim2
           mtx(i, j) = dot_product(vec, array(:, j))
        end do
@@ -845,13 +964,14 @@ contains
     real(dp), dimension(dim_result) :: rs
 
     interface
-       function fun(i) result(vec)
+       function fun(i, dim) result(vec)
          !> \brief Fucntion to compute the matrix `mtx` on the fly
          !> \param[in] i column/row to compute from `mtx`
          !> \param vec column/row from mtx
          use numeric_kinds, only: dp
          integer, intent(in) :: i
-         real(dp), dimension(size(vector, 1)) :: vec
+         integer, intent(in) :: dim         
+         real(dp), dimension(dim) :: vec
 
        end function fun
     end interface
@@ -861,7 +981,7 @@ contains
 
     !$OMP PARALLEL DO
     do i = 1, dim_result
-       rs(i) = dot_product(fun(i), vector)
+       rs(i) = dot_product(fun(i, size(vector)), vector)
     end do
   !$OMP END PARALLEL DO
 
@@ -1070,25 +1190,23 @@ contains
     ! local variables
     integer :: ii,j, m
     real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: diag, arr
-    real(dp), dimension(size(mtx, 1)) :: brr
-    real(dp) :: sdiag
+    real(dp), dimension(size(mtx, 1)) :: vec
     logical :: gev
 
     ! shape of matrix
     m = size(mtx, 1)
     gev = (present(stx))
-    sdiag  = 1.0
 
     do j=1, size(V, 2)
        if(gev) then
-        diag = eigenvalues(j) * stx
+          diag = eigenvalues(j) * stx
        else
-        diag = eye(m , m, eigenvalues(j))
+          diag = eye(m , m, eigenvalues(j))
        end if
        arr = mtx - diag
-       brr = lapack_matrix_vector('N', V, eigenvectors(:, j))
+       vec = lapack_matrix_vector('N', V, eigenvectors(:, j))
       
-       correction(:, j) = lapack_matrix_vector('N', arr, brr) 
+       correction(:, j) = lapack_matrix_vector('N', arr, vec) 
 
        do ii=1,size(correction,1)
         if (gev) then
@@ -1157,3 +1275,15 @@ contains
   end function substract_from_diagonal
   
 end submodule correction_methods_generalized_dense
+
+
+! submodule (davidson) correction_methods_free
+!   !> \brief submodule to compute the correction vectors for the matrix free algorithm
+
+!   implicit none
+  
+!  contains
+
+  
+! end submodule correction_methods_free
+  
