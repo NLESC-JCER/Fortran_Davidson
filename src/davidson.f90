@@ -546,14 +546,14 @@ contains
 
     ! local variables
     
-    !$OMP PARALLEL DO
+    !!$OMP PARALLEL DO
     do i = 1, size(vector)
        xs = fun_mtx(i, size(vector))
        diag(i) = xs(i)
        xs(i) = diag(i) - eigenval
        rs(i) = dot_product(xs, vector)
     end do
-  !$OMP END PARALLEL DO
+    !!$OMP END PARALLEL DO
 
   end subroutine compute_error
 
@@ -902,14 +902,14 @@ contains
     dim1 = size(array, 1)
     dim2 = size(array, 2)
 
-    !$OMP PARALLEL DO
+    !!$OMP PARALLEL DO
     do i = 1, dim1
        vec = fun(i, dim1)
        do j = 1, dim2
           mtx(i, j) = dot_product(vec, array(:, j))
        end do
     end do
-  !$OMP END PARALLEL DO
+  !!$OMP END PARALLEL DO
     
   end function free_matmul
 
@@ -979,11 +979,11 @@ contains
     ! local variables
     integer :: i
 
-    !$OMP PARALLEL DO
+    !!$OMP PARALLEL DO
     do i = 1, dim_result
        rs(i) = dot_product(fun(i, size(vector)), vector)
     end do
-  !$OMP END PARALLEL DO
+    !!$OMP END PARALLEL DO
 
   end function free_matrix_vector
 
