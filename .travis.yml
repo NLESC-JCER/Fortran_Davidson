@@ -11,6 +11,7 @@ addons:
       - cmake
       - libblas-dev
       - liblapack-dev
+      - libomp-dev
       - gfortran-7
       
 script:
