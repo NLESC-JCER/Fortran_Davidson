@@ -30,10 +30,17 @@ program main
   real(dp), dimension(20, 20) :: mtx
   real(dp), dimension(3) :: eigenvalues
   real(dp), dimension(20, 3) :: eigenvectors
+  real(dp) :: tolerance
+  integer:: max_dim_subspace, max_iterations, lowest
 
   mtx = generate_diagonal_dominant(20, 1d-4)
   stx = generate_diagonal_dominant(20, 1d-4, 1)
-  call generalized_eigensolver(mtx, eigenvalues, eigenvectors, 3, "GJD", 100, 1d-8, stx)
+  max_iterations = 100
+  max_dim_subspace = 20
+  tolerance = 1d-8
+  lowest = 3
+  call generalized_eigensolver(mtx, eigenvalues, eigenvectors, lowest, "GJD", max_iterations, &
+       tolerance, final_iterations, max_dim_subspace, stx)
   print *, eigenvalues
   print *, eigenvectors
 
@@ -43,7 +50,18 @@ The helper  `generate_diagonal_dominant` function generates a diagonal dominant
 matrix with entries to the diagonal close to row number `(i=1, number_of_rows)`
 and random number of the order `1e-4` on the off-diagonal entries.
 
-
+**Variables**:
+ * `mtx` (*in*) matrix to diagonalize
+ * `eigenvalues` (*out*) resulting eigenvalues
+ * `eigenvectors` (*out*) resulting eigenvectors
+ * `lowest`(*in*) number of eigenvalues to compute
+ * `method`(*in) Either "DPR" or "GJD"
+ * `max_iterations`(*in*) maximum number of iterations
+ * `tolerance`(*in*) Numerical tolerance for convergence
+ * `final_iterations`(*output*) returns the number of iterations that were needed to converge
+ * `max_dim_subspace`(*in*, *optional*) Dimension of the subspace of search
+ * `stx`(*in*, optional) Optional matrix to compute the generalized eigenvalue problem
+ 
 ### References:
  * [Davidson diagonalization method and its applications to electronic structure calculations](https://pdfs.semanticscholar.org/57811/eaf768d1a006f505dfe24f329874a679ba59.pdf?_ga=2.219777566.664950272.1547548596-1327556406.1547548596)
  * [Numerical Methods for Large Eigenvalue Problem](https://doi.org/10.1137/1.9781611970739)
