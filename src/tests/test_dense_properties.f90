@@ -43,6 +43,6 @@ program main
   ! There are only 3 eigenvectors
   print *, "GJD method: ", norm(xs(:3)) < sqrt(3.d0)
   print *, "DPR method: ", norm(ys(:3)) < sqrt(3.d0)
-
+  
 
 end program main
