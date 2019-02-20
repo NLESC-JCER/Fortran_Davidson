@@ -8,7 +8,7 @@ module davidson
   !> \private
   private
   !> \public
-  public :: generalized_eigensolver, generate_diagonal_dominant, norm, lapack_generalized_eigensolver
+  public :: eye, generalized_eigensolver, generate_diagonal_dominant, norm, lapack_generalized_eigensolver
   
   interface
 

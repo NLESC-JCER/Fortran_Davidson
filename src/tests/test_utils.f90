@@ -29,12 +29,11 @@ contains
     integer, intent(in) :: i, dim
     real(dp), dimension(dim) :: vector
 
-    ! Generate random vector
-    call random_number(vector)
-    ! scale the vector
-    vector = 0.d0
-    ! generate diagonal dominant component
-    vector(i) = 1d0
+    ! local variables
+    real(dp), dimension(dim, dim) :: mtx
+    mtx = read_matrix("stx_free.txt", dim)
+    vector = mtx(:, i)
+
     
   end function compute_vector_generalized_eigenvalue
 
