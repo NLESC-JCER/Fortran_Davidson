@@ -60,12 +60,12 @@ def main():
         raise RuntimeError("Submission Errors: {}".format(err))
     else:
         files = fnmatch.filter(os.listdir('.'), "test_dense_spec_*.txt")
-        print("testing normal eigenvalue solver")
+        print("TESTING NORMAL EIGENVALUE SOLVER")
         check_eigenvalues(files)
 
         # generalized case
         files_generalized = fnmatch.filter(os.listdir('.'), "test_dense_gen_*.txt")
-        print("testing generalized eigenvalue solver")
+        print("TESTING GENERALIZED EIGENVALUE SOLVER")
         check_eigenvalues(files_generalized, True)
 
 

@@ -13,7 +13,7 @@ execute_process(
 
 set(NUMPY_TEST_SRC ${CMAKE_SOURCE_DIR}/src/davidson.f90 ${CMAKE_SOURCE_DIR}/src/numeric_kinds.f90)
 
-set(test_cases test_dense_numpy test_dense_properties test_call_lapack)
+set(test_cases test_call_lapack test_dense_numpy test_dense_properties test_free_properties)
 
 foreach(PROG ${test_cases})
   add_executable(${PROG}
@@ -35,11 +35,18 @@ endforeach(PROG)
 MESSAGE(STATUS "Working directory: " ${CMAKE_SOURCE_DIR}/bin)
 
 add_test(
-  NAME test_properties
+  NAME test_dense_properties
   COMMAND $<TARGET_FILE:test_dense_properties>
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/bin
   )
 
+add_test(
+  NAME test_free_properties
+  COMMAND $<TARGET_FILE:test_free_properties>
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/bin
+  )
+
+# Tests requiring python, numpy and scipy
 if(${_numpy_status} EQUAL 0)
   add_test(
     NAME dense_numpy_test
