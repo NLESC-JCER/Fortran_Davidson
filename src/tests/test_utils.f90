@@ -4,6 +4,24 @@ module test_utils
 
 contains
 
+  function compute_matrix_on_fly(i, dim) result (vector)
+    !> \param[in] i index of the i-th column
+    !> \param[in] dim dimension of the resulting column
+    !> \return the i-th column of a square matrix of dimension dim
+
+    integer, intent(in) :: i, dim
+    real(dp), dimension(dim) :: vector
+
+    ! Generate random vector
+    call random_number(vector)
+    ! scale the vector
+    vector = vector * 1e-3
+    ! generate diagonal dominant component
+    vector(i) = i + vector(i)
+    
+  end function compute_matrix_on_fly
+
+  
   function diagonal(matrix)
     !> return the diagonal of a matrix
     real(dp), dimension(:, :), intent(in) :: matrix
