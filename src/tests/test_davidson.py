@@ -5,10 +5,11 @@ import numpy as np
 from scipy import linalg
 import os
 
-msg = "test_davidson_dense.py -i executable"
+msg = "test_davidson_dense.py -d dense_executable -f free_executable"
 
 parser = argparse.ArgumentParser(description=msg)
-parser.add_argument('-i', required=True, help="program to run")
+parser.add_argument('-d', required=True, help="Program to run the dense version")
+parser.add_argument('-f', required=False, help="Program to run the free matrix version")
 
 
 def check_eigenvalues(files, generalized: bool = False):
@@ -74,7 +75,7 @@ def read_cmd_line():
     Read the file to run
     """
     args = parser.parse_args()
-    return args.i
+    return args.d
 
 
 if __name__ == "__main__":

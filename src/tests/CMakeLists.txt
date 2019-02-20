@@ -49,8 +49,9 @@ add_test(
 # Tests requiring python, numpy and scipy
 if(${_numpy_status} EQUAL 0)
   add_test(
-    NAME dense_numpy_test
-    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_davidson_dense.py -i $<TARGET_FILE:test_dense_numpy>
+    NAME numpy_test
+    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_davidson.py -d $<TARGET_FILE:test_dense_numpy>
+    # -f <$<TARGET_FILE:test_free_numpy>
     )
   add_test(
     NAME lapack_test
