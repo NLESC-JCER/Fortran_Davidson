@@ -13,7 +13,7 @@ execute_process(
 
 set(NUMPY_TEST_SRC ${CMAKE_SOURCE_DIR}/src/davidson.f90 ${CMAKE_SOURCE_DIR}/src/numeric_kinds.f90)
 
-set(test_cases test_numpy test_properties)
+set(test_cases test_dense_numpy test_dense_properties)
 
 foreach(PROG ${test_cases})
   add_executable(${PROG}
@@ -36,13 +36,13 @@ MESSAGE(STATUS "Working directory: " ${CMAKE_SOURCE_DIR}/bin)
 
 add_test(
   NAME test_properties
-  COMMAND $<TARGET_FILE:test_properties>
+  COMMAND $<TARGET_FILE:test_dense_properties>
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/bin
   )
 
 if(${_numpy_status} EQUAL 0)
   add_test(
-    NAME numpy_test
-    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_davidson.py -i $<TARGET_FILE:test_numpy>
+    NAME dense_numpy_test
+    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_davidson_dense.py -i $<TARGET_FILE:test_dense_numpy>
     )
 endif()  
