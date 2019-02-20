@@ -55,7 +55,7 @@ and random number of the order `1e-4` on the off-diagonal entries.
  * `eigenvalues` (*out*) resulting eigenvalues
  * `eigenvectors` (*out*) resulting eigenvectors
  * `lowest`(*in*) number of eigenvalues to compute
- * `method`(*in) Either "DPR" or "GJD"
+ * `method`(*in*) Either "DPR" or "GJD"
  * `max_iterations`(*in*) maximum number of iterations
  * `tolerance`(*in*) Numerical tolerance for convergence
  * `final_iterations`(*output*) returns the number of iterations that were needed to converge
