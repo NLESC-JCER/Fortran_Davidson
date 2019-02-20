@@ -30,34 +30,6 @@ module davidson
        real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
        
      end function compute_correction_generalized_dense
-
-
-     ! module function compute_DPR_free(fun_mtx, V, eigenvalues, eigenvectors) result(correction)
-     !   !> compute the correction vector using the DPR method for a matrix free diagonalization
-     !   !> See correction_methods submodule for the implementations
-     !   !> \param[in] fun_mtx: function to compute matrix
-     !   !> \param[in] V: Basis of the iteration subspace
-     !   !> \param[in] eigenvalues: of the reduce problem
-     !   !> \param[in] eigenvectors: of the reduce problem
-     !   !> \return correction matrix
-     !   real(dp), dimension(:), intent(in) :: eigenvalues
-     !   real(dp), dimension(:, :), intent(in) :: V, eigenvectors
-     !   real(dp), dimension(size(eigenvectors, 1), size(V, 2)) :: correction
-
-     !   interface
-     !      function fun_mtx(i, dim) result(vec)
-     !        !> \brief Function to compute the optional mtx on the fly
-     !        !> \param[in] i column/row to compute from mtx
-     !        !> \param vec column/row from mtx
-     !        use numeric_kinds, only: dp
-     !        integer, intent(in) :: i
-     !        integer, intent(in) :: dim
-     !        real(dp), dimension(dim) :: vec
-            
-     !      end function fun_mtx
-     !   end interface
-
-     ! end Function compute_DPR_free
        
   end interface
 
@@ -175,7 +147,6 @@ contains
           deallocate(eigenvalues_sub)
        end if
 
-       ! allocate(eigenvectors_sub(size(projected, 1), size(projected,2)))
        allocate(eigenvalues_sub(size(mtx_proj, 1)))
        allocate(eigenvectors_sub(size(mtx_proj, 1), size(mtx_proj, 2)))
 
@@ -341,9 +312,6 @@ contains
     real(dp), dimension(:), allocatable :: eigenvalues_sub
     real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V
 
-    ! generalize problem
-    logical :: gev 
-    
     ! Iteration subpsace dimension
     dim_sub = lowest * 2
 
@@ -362,14 +330,10 @@ contains
 
    ! 2. Generate subspace matrix problem by projecting into V
     mtx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_mtx, V))
+    stx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_stx, V))
 
-    if(gev) then
-       stx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_stx, V))
-    end if
-
-        ! ! Outer loop block Davidson schema
+    ! Outer loop block Davidson schema
     outer_loop: do i=1, max_iters
-
        ! 3. compute the eigenvalues and their corresponding ritz_vectors
        ! for the projected matrix using lapack
        call check_deallocate_matrix(eigenvectors_sub)
@@ -378,25 +342,15 @@ contains
           deallocate(eigenvalues_sub)
        end if
 
-       ! allocate(eigenvectors_sub(size(projected, 1), size(projected,2)))
        allocate(eigenvalues_sub(size(mtx_proj, 1)))
        allocate(eigenvectors_sub(size(mtx_proj, 1), size(mtx_proj, 2)))
 
-
-       if (gev) then
-        call lapack_generalized_eigensolver(mtx_proj, eigenvalues_sub, eigenvectors_sub, stx_proj)
-       else
-        call lapack_generalized_eigensolver(mtx_proj, eigenvalues_sub, eigenvectors_sub)
-       end if
+       call lapack_generalized_eigensolver(mtx_proj, eigenvalues_sub, eigenvectors_sub, stx_proj)
 
        ! 4. Check for convergence
        ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
        do j=1,lowest
-          if(gev) then
-            guess = eigenvalues_sub(j) * free_matrix_vector(fun_stx, ritz_vectors(:, j), dim_mtx)
-          else
-            guess = eigenvalues_sub(j) * ritz_vectors(:, j)
-          end if
+          guess = eigenvalues_sub(j) * free_matrix_vector(fun_stx, ritz_vectors(:, j), dim_mtx)
           rs = free_matrix_vector(fun_mtx, ritz_vectors(:, j), dim_mtx) - guess
           errors(j) = norm(rs)
        end do
@@ -413,12 +367,7 @@ contains
           call check_deallocate_matrix(correction)
           allocate(correction(size(ritz_vectors, 1), size(V, 2)))
 
-          ! if(gev) then
-          !   correction = compute_correction_generalized(mtx, V, eigenvalues_sub, eigenvectors_sub, method, stx)
-          ! else
-          !   correction = compute_correction_generalized(mtx, V, eigenvalues_sub, eigenvectors_sub, method)
-          ! end if
-
+          correction = compute_DPR_free(fun_mtx, fun_stx, V, eigenvalues_sub, eigenvectors_sub)
 
           ! 6. Increase Basis size
           call concatenate(V, correction)
@@ -429,9 +378,7 @@ contains
 
           ! 8. Update the the projection 
           call update_projection_free(fun_mtx, V, mtx_proj)
-          if (gev) then
-             call update_projection_free(fun_stx, V, stx_proj)
-           end if
+          call update_projection_free(fun_stx, V, stx_proj)
 
        else
 
@@ -440,10 +387,7 @@ contains
 
           ! we refresh the projected matrices
           mtx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_mtx, V))
-
-          if(gev) then
-           stx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_stx, V))
-          end if
+          stx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_stx, V))
 
        end if
 
@@ -464,17 +408,15 @@ contains
     deallocate(eigenvalues_sub, eigenvectors_sub, V, mtx_proj)
 
     ! free optional matrix
-    if (gev) then
-       call check_deallocate_matrix(stx_proj)
-    endif
-
+    call check_deallocate_matrix(stx_proj)
     
   end subroutine generalized_eigensolver_free
 
-  function compute_DPR_free(fun_mtx, V, eigenvalues, eigenvectors) result(correction)
+  function compute_DPR_free(fun_mtx, fun_stx, V, eigenvalues, eigenvectors) result(correction)
     !> compute the correction vector using the DPR method for a matrix free diagonalization
     !> See correction_methods submodule for the implementations
     !> \param[in] fun_mtx: function to compute matrix
+    !> \param[in] fun_stx: function to compute the matrix for the generalized case
     !> \param[in] V: Basis of the iteration subspace
     !> \param[in] eigenvalues: of the reduce problem
     !> \param[in] eigenvectors: of the reduce problem
@@ -482,7 +424,7 @@ contains
 
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: V, eigenvectors
-    real(dp), dimension(size(eigenvectors, 1), size(V, 2)) :: correction
+    real(dp), dimension(size(V, 1), size(V, 2)) :: correction
 
     interface
           function fun_mtx(i, dim) result(vec)
@@ -495,40 +437,52 @@ contains
             real(dp), dimension(dim) :: vec
             
           end function fun_mtx
+
+          function fun_stx(i, dim) result(vec)
+            !> \brief Fucntion to compute the optional stx matrix on the fly
+            !> \param[in] i column/row to compute from stx
+            !> \param vec column/row from stx
+            use numeric_kinds, only: dp
+            integer, intent(in) :: i
+            integer, intent(in) :: dim         
+            real(dp), dimension(dim) :: vec
+
+          end function fun_stx
+
        end interface
 
     ! local variables
     integer :: ii, j
-    real(dp), dimension(size(eigenvectors, 1)) :: diag, rs, vector
+    real(dp), dimension(size(V, 1)) :: diag_mtx, diag_stx, rs, vector
 
-    
     do j=1, size(V, 2)
        vector = lapack_matrix_vector('N', V, eigenvectors(:, j))
-       call compute_error(fun_mtx, eigenvalues(j), vector, rs, diag)
+       call compute_error(fun_mtx, fun_stx, eigenvalues(j), vector, rs, diag_mtx, diag_stx)
        correction(:, j) = rs
-
        do ii=1,size(correction,1)
-          correction(ii, j) = correction(ii, j) / (eigenvalues(j)  - diag(ii))
+          correction(ii, j) = correction(ii, j) / (eigenvalues(j) * diag_stx(ii)  - diag_mtx(ii))
        end do
     end do
 
   end function compute_DPR_free
 
-  subroutine compute_error(fun_mtx, eigenval, vector, rs, diag)
+  subroutine compute_error(fun_mtx, fun_stx, eigenval, vector, rs, diag_mtx, diag_stx)
     !> \brief compute the multiplication: (mtx - eigenval) * vector and
     !> return the diagonal of the matrix
     !> \param[in] fun_mtx: function to compute the matrix
-    !> \param[in] vector
+    !> \param[in] fun_stx: function to compute the matrix for the generalized case
     !> \param[in] eigenval
-    !> \return correction vector
+    !> \param[in] vector
+    !> \param[out] rs correction vector
+    !> \param[out] diagonal elements of the matrix
+    !> \param[out] diagonal elements of the matrix to compute the generalized problem
     real(dp), dimension(:), intent(in) :: vector
-    real(dp), dimension(:), intent(out) :: diag, rs
+    real(dp), dimension(:), intent(out) :: diag_mtx, diag_stx, rs
     real(dp) :: eigenval
-
 
     ! local variables
     integer :: i
-    real(dp), dimension(size(vector)) ::xs
+    real(dp), dimension(size(vector)) ::xs, ys
 
     interface
        function fun_mtx(i, dim) result(vec)
@@ -542,15 +496,27 @@ contains
          real(dp), dimension(dim) :: vec
          
        end function fun_mtx
+
+       function fun_stx(i, dim) result(vec)
+         !> \brief Fucntion to compute the optional stx matrix on the fly
+         !> \param[in] i column/row to compute from stx
+         !> \param vec column/row from stx
+         use numeric_kinds, only: dp
+         integer, intent(in) :: i
+         integer, intent(in) :: dim         
+         real(dp), dimension(dim) :: vec
+
+       end function fun_stx
+
     end interface
 
-    ! local variables
-    
     !!$OMP PARALLEL DO
     do i = 1, size(vector)
        xs = fun_mtx(i, size(vector))
-       diag(i) = xs(i)
-       xs(i) = diag(i) - eigenval
+       ys = fun_stx(i, size(vector))
+       diag_mtx(i) = xs(i)
+       diag_stx(i) = ys(i)
+       xs = xs - eigenval * ys
        rs(i) = dot_product(xs, vector)
     end do
     !!$OMP END PARALLEL DO
@@ -1085,8 +1051,8 @@ contains
     
   function generate_diagonal_dominant(m, sparsity, diag_val) result(arr)
     !> Generate a diagonal dominant square matrix of dimension m
-    !> \param m: dimension of the matrix
-    !> \param sparsity: magnitude order of the off-diagonal values
+    !> \param m dimension of the matrix
+    !> \param sparsity magnitude order of the off-diagonal values
       
     integer, intent(in) :: m ! size of the square matrix
     real(dp), optional :: diag_val

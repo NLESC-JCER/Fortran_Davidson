@@ -12,12 +12,11 @@ contains
     integer, intent(in) :: i, dim
     real(dp), dimension(dim) :: vector
 
-    ! Generate random vector
-    call random_number(vector)
-    ! scale the vector
-    vector = vector * 1d-3
-    ! generate diagonal dominant component
-    vector(i) = i + vector(i)
+    ! local variables
+    real(dp), dimension(dim, dim) :: mtx
+    mtx = read_matrix("matrix_free.txt", dim)
+    
+    vector = mtx(:, i)
     
   end function compute_vector_on_fly
 
@@ -33,7 +32,7 @@ contains
     ! Generate random vector
     call random_number(vector)
     ! scale the vector
-    vector = vector * 1d-3
+    vector = 0.d0
     ! generate diagonal dominant component
     vector(i) = 1d0
     
@@ -61,6 +60,25 @@ contains
     end do
 
   end function diagonal
+
+  function read_matrix(path_file, dim) result(mtx)
+    !> read a row-major square matrix from a file
+    !> \param path_file: path to the file
+    !> \param dim: dimension of the square matrix
+    !> \return matrix 
+
+    character(len=*), intent(in) :: path_file
+    integer, intent(in) :: dim
+    real(dp), dimension(dim, dim) :: mtx
+    integer :: i
+    
+    open(unit=3541, file=path_file, status="OLD")
+    do i=1,dim
+       read(3541, *) mtx(i, :)
+    end do
+    close(3541)
+    
+  end function read_matrix
 
   
   subroutine write_vector(path_file, vector)
