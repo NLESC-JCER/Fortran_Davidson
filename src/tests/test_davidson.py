@@ -9,10 +9,10 @@ msg = "test_davidson_dense.py -d dense_executable -f free_executable"
 
 parser = argparse.ArgumentParser(description=msg)
 parser.add_argument('-d', required=True, help="Program to run the dense version")
-parser.add_argument('-f', required=False, help="Program to run the free matrix version")
+parser.add_argument('-f', required=True, help="Program to run the free matrix version")
 
 
-def check_eigenvalues(files, generalized: bool = False):
+def check_eigenvalues_dense(files, generalized: bool = False):
     """
     Check that the eigenvalues/eigenvectors are the same that the ones
     computed with numpy
@@ -50,11 +50,29 @@ def check_eigenvalues(files, generalized: bool = False):
         print(msg)
 
 
-def main():
-    executable = read_cmd_line()
-    print("path to executable: ", executable)
+def check_eigenvalues_free(files):
+    """
+    Check the computed eigenvalues/eigenvectors against scipy.
+    """
+    files.sort()
+    es_DPR, vs_DPR, mtx, stx = [np.loadtxt(x) for x in files]
+    dim = int(np.sqrt(mtx.size))
+    mtx = mtx.reshape(dim, dim)
+    stx = stx.reshape(dim, dim)
 
-    p = Popen(executable, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True)
+    # compute the eigenvalues/eigenvectors of the test matrix
+    es_numpy, vs_numpy = linalg.eigh(mtx, b=stx)
+
+    assert np.allclose(es_DPR, es_numpy[:es_DPR.size])
+
+
+def main():
+    dense_executable, free_executable = read_cmd_line()
+    print("path to dense executable: ", dense_executable)
+    print("path to free executable: ", free_executable)
+    # Dense case
+    # Dense case
+    p = Popen(dense_executable, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True)
     rs = p.communicate()
     err = rs[1]
     if err:
@@ -62,12 +80,22 @@ def main():
     else:
         files = fnmatch.filter(os.listdir('.'), "test_dense_spec_*.txt")
         print("TESTING NORMAL EIGENVALUE SOLVER")
-        check_eigenvalues(files)
+        check_eigenvalues_dense(files)
 
         # generalized case
         files_generalized = fnmatch.filter(os.listdir('.'), "test_dense_gen_*.txt")
         print("TESTING GENERALIZED EIGENVALUE SOLVER")
-        check_eigenvalues(files_generalized, True)
+        check_eigenvalues_dense(files_generalized, True)
+
+    p = Popen(free_executable, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True)
+    rs = p.communicate()
+    err = rs[1]
+    if err:
+        raise RuntimeError("Submission Errors: {}".format(err))
+    else:
+        # Matrix free version
+        files_free = fnmatch.filter(os.listdir('.'), "*_free.txt")
+        check_eigenvalues_free(files_free)
 
 
 def read_cmd_line():
@@ -75,7 +103,7 @@ def read_cmd_line():
     Read the file to run
     """
     args = parser.parse_args()
-    return args.d
+    return args.d, args.f
 
 
 if __name__ == "__main__":

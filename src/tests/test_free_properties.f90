@@ -1,7 +1,7 @@
 program main
   
   use numeric_kinds, only: dp
-  use davidson, only: eye, generalized_eigensolver, norm, lapack_generalized_eigensolver, generate_diagonal_dominant
+  use davidson, only: generalized_eigensolver, norm, lapack_generalized_eigensolver, generate_diagonal_dominant
   use test_utils, only: compute_vector_generalized_eigenvalue, compute_vector_on_fly, diagonal, write_matrix
 
   implicit none
@@ -15,7 +15,6 @@ program main
   ! Matrix to check the algorithm
   mtx = generate_diagonal_dominant(50, 1d-3)
   stx = generate_diagonal_dominant(50, 1d-3, 1d0)
-  ! stx = eye(50, 50)
   call write_matrix("matrix_free.txt", mtx)
   call write_matrix("stx_free.txt", stx)
 
