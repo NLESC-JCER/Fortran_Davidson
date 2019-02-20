@@ -27,15 +27,15 @@ program main
  
   implicit none
 
-  real(dp), dimension(20, 20) :: mtx
+  real(dp), dimension(100, 100) :: mtx
   real(dp), dimension(3) :: eigenvalues
-  real(dp), dimension(20, 3) :: eigenvectors
+  real(dp), dimension(100, 3) :: eigenvectors
   real(dp) :: tolerance
   integer:: max_dim_subspace, max_iterations, lowest
 
-  mtx = generate_diagonal_dominant(20, 1d-4)
-  stx = generate_diagonal_dominant(20, 1d-4, 1)
-  max_iterations = 100
+  mtx = generate_diagonal_dominant(100, 1d-4)
+  stx = generate_diagonal_dominant(100, 1d-4, 1)
+  max_iterations = 1000
   max_dim_subspace = 20
   tolerance = 1d-8
   lowest = 3
