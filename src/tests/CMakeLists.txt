@@ -4,7 +4,7 @@ find_package(PythonInterp REQUIRED)
 
 execute_process(
   COMMAND
-  ${PYTHON_EXECUTABLE} "-c" "import numpy"
+  ${PYTHON_EXECUTABLE} "-c" "import numpy; import scipy"
   RESULT_VARIABLE _numpy_status
   OUTPUT_VARIABLE _numpy_location
   ERROR_QUIET
@@ -13,7 +13,7 @@ execute_process(
 
 set(NUMPY_TEST_SRC ${CMAKE_SOURCE_DIR}/src/davidson.f90 ${CMAKE_SOURCE_DIR}/src/numeric_kinds.f90)
 
-set(test_cases test_dense_numpy test_dense_properties)
+set(test_cases test_dense_numpy test_dense_properties test_call_lapack)
 
 foreach(PROG ${test_cases})
   add_executable(${PROG}
@@ -45,4 +45,9 @@ if(${_numpy_status} EQUAL 0)
     NAME dense_numpy_test
     COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_davidson_dense.py -i $<TARGET_FILE:test_dense_numpy>
     )
+  add_test(
+    NAME lapack_test
+    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_lapack.py -i $<TARGET_FILE:test_call_lapack>
+    )
+  
 endif()  

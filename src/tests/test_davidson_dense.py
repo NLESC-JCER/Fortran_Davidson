@@ -4,7 +4,7 @@ import fnmatch
 import numpy as np
 import os
 
-msg = "namd.py -i input"
+msg = "test_davidson_dense.py -i executable"
 
 parser = argparse.ArgumentParser(description=msg)
 parser.add_argument('-i', required=True, help="program to run")
@@ -51,7 +51,7 @@ def main():
     if err:
         raise RuntimeError("Submission Errors: {}".format(err))
     else:
-        files = fnmatch.filter(os.listdir('.'), "*.txt")
+        files = fnmatch.filter(os.listdir('.'), "test_dense_*.txt")
         check_eigenvalues(files)
 
 

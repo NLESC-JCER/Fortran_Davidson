@@ -16,10 +16,9 @@ program main
   call generalized_eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 3, "GJD", 1000, 1d-8, iter_i)
   call generalized_eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 1000, 1d-8, iter_i)
 
-  call write_matrix("matrix.txt", mtx)
-  call write_vector("eigenvalues_GJD.txt",eigenvalues_GJD)
-  call write_vector("eigenvalues_DPR.txt",eigenvalues_DPR)
-
-  call write_matrix("eigenvectors_GJD.txt", eigenvectors_GJD)
-  call write_matrix("eigenvectors_DPR.txt", eigenvectors_DPR)
+  call write_matrix("test_dense_matrix.txt", mtx)
+  call write_vector("test_dense_eigenvalues_GJD.txt",eigenvalues_GJD)
+  call write_vector("test_dense_eigenvalues_DPR.txt",eigenvalues_DPR)
+  call write_matrix("test_dense_eigenvectors_GJD.txt", eigenvectors_GJD)
+  call write_matrix("test_dense_eigenvectors_DPR.txt", eigenvectors_DPR)
 end program main
