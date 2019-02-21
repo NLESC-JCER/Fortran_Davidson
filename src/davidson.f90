@@ -952,7 +952,7 @@ contains
     do i = 1, dim_result
        rs(i) = dot_product(fun(i, size(vector)), vector)
     end do
-    !!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end function free_matrix_vector
 
