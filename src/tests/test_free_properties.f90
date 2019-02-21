@@ -9,7 +9,6 @@ program main
 
   real(dp), dimension(3) :: eigenvalues_DPR
   real(dp), dimension(50, 3) :: eigenvectors_DPR
-  real(dp), dimension(50, 50) :: mtx, stx
   real(dp), dimension(50) :: xs, zs
   integer :: iter_i, j
  
