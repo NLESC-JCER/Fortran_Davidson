@@ -2,7 +2,6 @@
 module test_utils
   use numeric_kinds, only: dp
   use davidson, only: generate_diagonal_dominant
-  use global_variables, only: global_stx
   implicit none
   
 contains

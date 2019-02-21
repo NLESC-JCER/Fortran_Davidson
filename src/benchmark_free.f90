@@ -56,7 +56,7 @@ program main
 
   implicit none
 
-  integer, parameter :: dim = 50
+  integer, parameter :: dim = 1000
   integer, parameter :: lowest = 3
   real(dp), dimension(lowest) :: eigenvalues_DPR
   real(dp), dimension(dim, lowest) :: eigenvectors_DPR
