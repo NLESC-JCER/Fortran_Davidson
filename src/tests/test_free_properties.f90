@@ -19,10 +19,10 @@ program main
   call write_matrix("stx_free.txt", stx)
 
   ! NOTE:
-  ! compute_vector_on_fly and compute_vector_generalized_eigenvalue JUST READ THE VALUES FROM
-  ! THE PREVIOUS CREATED FILES!!!!!
+  ! compute_matrix_on_the_fly and compute_stx_on_the_fly call some global variables hardcoded just for testing
   
-  call generalized_eigensolver(compute_matrix_on_the_fly, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 1000, &
+  call generalized_eigensolver(compute_matrix_on_the_fly
+  , eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 1000, &
        1d-8, iter_i, 20, compute_stx_on_the_fly)
 
   print *, "eigenvalues: ", eigenvalues_DPR
@@ -34,6 +34,7 @@ program main
      print *, "error: ", norm(xs)
      print *, "eigenvalue ", j, ": ", eigenvalues_DPR(j), " succeeded: ", norm(xs) < 1d-8
   end do
+  
   print *, "Test 2"
   print *, "If V are the eigenvector then V * V^T = I"
   zs = diagonal(matmul(eigenvectors_DPR, transpose(eigenvectors_DPR)))

@@ -19,9 +19,8 @@ program main
   call write_matrix("matrix_free.txt", mtx)
   call write_matrix("stx_free.txt", stx)
 
-    ! NOTE:
-  ! compute_vector_on_fly and compute_vector_generalized_eigenvalue JUST READ THE VALUES FROM
-  ! THE PREVIOUS CREATED FILES!!!!!
+  ! NOTE:
+  ! compute_matrix_on_the_fly and compute_stx_on_the_fly call some global variables hardcoded just for testing
   
   ! call eigenvalue solver
   call generalized_eigensolver(compute_matrix_on_the_fly, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 1000, &
