@@ -45,7 +45,7 @@ else()
 
   # Find OpenMP
   find_package(OpenMP REQUIRED)
-
+  message(STATUS "OpenMP flags: " ${OpenMP_Fortran_FLAGS})
 endif(MKL_FOUND)
 
 # Testing

@@ -9,6 +9,7 @@ module davidson
   private
   !> \public
   public :: eye, generalized_eigensolver, generate_diagonal_dominant, norm, lapack_generalized_eigensolver
+
   
   interface
 
@@ -875,7 +876,7 @@ contains
           mtx(i, j) = dot_product(vec, array(:, j))
        end do
     end do
-  !!$OMP END PARALLEL DO
+    !!$OMP END PARALLEL DO
     
   end function free_matmul
 

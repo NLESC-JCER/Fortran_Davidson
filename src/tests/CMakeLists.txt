@@ -29,7 +29,7 @@ foreach(PROG ${test_cases})
     "$<$<CONFIG:Debug>:${Fortran_FLAGS_DEBUG}>"
     )
   
-  target_link_libraries(${PROG} ${LINEAR_ALGEBRA})
+  target_link_libraries(${PROG} PRIVATE ${LINEAR_ALGEBRA} ${OpenMP_Fortran_FLAGS})
 endforeach(PROG)
 
 MESSAGE(STATUS "Working directory: " ${CMAKE_SOURCE_DIR}/bin)

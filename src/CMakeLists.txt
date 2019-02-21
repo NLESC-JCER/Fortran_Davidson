@@ -26,7 +26,7 @@ target_compile_options(main
    "$<$<CONFIG:Debug>:${Fortran_FLAGS_DEBUG}>"
    )
 
-target_link_libraries(main ${LINEAR_ALGEBRA})
+target_link_libraries(main PRIVATE ${LINEAR_ALGEBRA} ${OpenMP_Fortran_FLAGS})
 
 if(ENABLE_TEST)
   MESSAGE(STATUS "enable test")
