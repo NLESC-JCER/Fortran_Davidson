@@ -41,7 +41,8 @@ def check_eigenvalues_dense(files, generalized: bool = False):
 
     # Precision Eigenvectos numpy
     for i in range(ncols):
-        print("precision eigenvalue ", i, ":")
+        print("eigenvalue number: ", i, " value_DPR: ", es_DPR[i], " value_GJD: ", es_GJD[i])
+        print("Error: ")
         x = np.linalg.norm(np.dot(mtx, vs[:, i]) - (es[i] * np.dot(stx, vs[:, i])))
         y = np.linalg.norm(np.dot(mtx, vs_DPR[:, i]) - (es_DPR[i] * np.dot(stx, vs_DPR[:, i])))
         z = np.linalg.norm(np.dot(mtx, vs_GJD[:, i]) - (es_GJD[i] * np.dot(stx, vs_GJD[:, i])))
@@ -59,11 +60,23 @@ def check_eigenvalues_free(files):
     dim = int(np.sqrt(mtx.size))
     mtx = mtx.reshape(dim, dim)
     stx = stx.reshape(dim, dim)
+    vs_DPR = vs_DPR.reshape(dim, es_DPR.size)
 
     # compute the eigenvalues/eigenvectors of the test matrix
+    print("TESTING GENERALIZED MATRIX FREE ALGORITHM")
     es_numpy, vs_numpy = linalg.eigh(mtx, b=stx)
 
     assert np.allclose(es_DPR, es_numpy[:es_DPR.size])
+
+    for i in range(es_DPR.size):
+        print("eigenvalue number: ", i, " value_DPR: ", es_DPR[i])
+        print("Error: ")
+        x = np.linalg.norm(
+            np.dot(mtx, vs_numpy[:, i]) - (es_numpy[i] * np.dot(stx, vs_numpy[:, i])))
+        y = np.linalg.norm(np.dot(mtx, vs_DPR[:, i]) - (es_DPR[i] * np.dot(stx, vs_DPR[:, i])))
+
+        msg = "\tnumpy: {:5.2e} DPR: {:5.2e}".format(x, y)
+        print(msg)
 
 
 def main():
