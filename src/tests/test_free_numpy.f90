@@ -8,7 +8,6 @@ program main
 
   real(dp), dimension(3) :: eigenvalues_DPR
   real(dp), dimension(50, 3) :: eigenvectors_DPR
-  real(dp), dimension(50, 50) :: mtx, stx
   integer :: iter_i
   
   call write_matrix("matrix_free.txt", global_matrix)
