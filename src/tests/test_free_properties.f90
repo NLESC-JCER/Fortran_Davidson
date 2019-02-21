@@ -2,7 +2,7 @@ program main
   
   use numeric_kinds, only: dp
   use davidson, only: generalized_eigensolver, norm, lapack_generalized_eigensolver, generate_diagonal_dominant
-  use test_utils, only: compute_vector_generalized_eigenvalue, compute_vector_on_fly, diagonal, write_matrix
+  use test_utils, only: compute_matrix_on_the_fly, compute_stx_on_the_fly, diagonal, write_matrix
 
   implicit none
 
@@ -22,8 +22,8 @@ program main
   ! compute_vector_on_fly and compute_vector_generalized_eigenvalue JUST READ THE VALUES FROM
   ! THE PREVIOUS CREATED FILES!!!!!
   
-  call generalized_eigensolver(compute_vector_on_fly, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 1000, &
-       1d-8, iter_i, 20, compute_vector_generalized_eigenvalue)
+  call generalized_eigensolver(compute_matrix_on_the_fly, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 1000, &
+       1d-8, iter_i, 20, compute_stx_on_the_fly)
 
   print *, "eigenvalues: ", eigenvalues_DPR
   print *, "Test 1"

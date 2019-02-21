@@ -9,7 +9,6 @@ module davidson
   private
   !> \public
   public :: eye, generalized_eigensolver, generate_diagonal_dominant, norm, lapack_generalized_eigensolver
-
   
   interface
 
