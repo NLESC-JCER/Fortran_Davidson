@@ -92,7 +92,7 @@ program main
 
   call generalized_eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 3, "GJD", 1000, 1d-8, iter_i, 10, stx)
   call generalized_eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 1000, 1d-8, iter_i, 10, stx)
-  
+
   print *, "Test 1"
   test_norm_eigenvalues = norm(eigenvalues_GJD - eigenvalues_DPR)
   print *, "Check that eigenvalues norm computed by different methods are the same: ", test_norm_eigenvalues < 1e-6
@@ -117,12 +117,13 @@ program main
      dims = [10, 50, 100, 500, 1000]
      sparsity = 1d-3
      call compute_benchmark(dims, 3, sparsity, times, iters)
+
+     call write_vector("times_DPR.txt", times(:, 1))
+     call write_vector("times_GJD.txt", times(:, 2))
+     
+     call write_vector("cycles_DPR.txt", cast_to_double(iters(:, 1)))
+     call write_vector("cycles_GJD.txt", cast_to_double(iters(:, 2)))
   end if
   
-  call write_vector("times_DPR.txt", times(:, 1))
-  call write_vector("times_GJD.txt", times(:, 2))
-
-  call write_vector("cycles_DPR.txt", cast_to_double(iters(:, 1)))
-  call write_vector("cycles_GJD.txt", cast_to_double(iters(:, 2)))
   
 end program main
