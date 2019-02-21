@@ -9,15 +9,6 @@ program main
   real(dp), dimension(50, 3) :: eigenvectors_DPR
   real(dp), dimension(50, 50) :: mtx, stx
   integer :: iter_i
-  
-  ! mtx = read_matrix("tests/matrix.txt", 100)
-  mtx = generate_diagonal_dominant(50, 1d-3)
-
-    ! Matrix to check the algorithm
-  mtx = generate_diagonal_dominant(50, 1d-3)
-  stx = generate_diagonal_dominant(50, 1d-3, 1d0)
-  call write_matrix("matrix_free.txt", mtx)
-  call write_matrix("stx_free.txt", stx)
 
   ! NOTE:
   ! compute_matrix_on_the_fly and compute_stx_on_the_fly call some global variables hardcoded just for testing
