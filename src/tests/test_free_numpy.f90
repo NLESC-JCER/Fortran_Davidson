@@ -2,6 +2,7 @@ program main
   use numeric_kinds, only: dp
   use davidson, only: generalized_eigensolver, generate_diagonal_dominant
   use test_utils, only: compute_matrix_on_the_fly, compute_stx_on_the_fly, write_matrix, write_vector
+  use global_variables, only: global_matrix, global_stx
 
   implicit none
 
@@ -9,6 +10,9 @@ program main
   real(dp), dimension(50, 3) :: eigenvectors_DPR
   real(dp), dimension(50, 50) :: mtx, stx
   integer :: iter_i
+  
+  call write_matrix("matrix_free.txt", global_matrix)
+  call write_matrix("stx_free.txt", global_stx)
 
   ! NOTE:
   ! compute_matrix_on_the_fly and compute_stx_on_the_fly call some global variables hardcoded just for testing
