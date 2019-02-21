@@ -56,20 +56,28 @@ program main
 
   implicit none
 
-  real(dp), dimension(3) :: eigenvalues_DPR
-  real(dp), dimension(100, 3) :: eigenvectors_DPR
-  real(dp), dimension(100) :: xs, zs
-  real(dp), dimension(10, 10) ::  arr
+  integer, parameter :: dim = 50
+  integer, parameter :: lowest = 3
+  real(dp), dimension(lowest) :: eigenvalues_DPR
+  real(dp), dimension(dim, lowest) :: eigenvectors_DPR
+  real(dp), dimension(dim) :: xs
+  real(dp), dimension(dim, dim) :: mtx, stx
   integer :: iter_i, j
 
-  do j=1, 10
-     arr(:, j) = compute_matrix_on_the_fly(j, 10)
+  do j=1, dim
+     mtx(:, j) = compute_matrix_on_the_fly(j, dim)
+     stx(:, j) = compute_stx_on_the_fly(j, dim)
   end do
 
-  ! call generalized_eigensolver(compute_matrix_on_the_fly, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 1000, &
-  !      1d-8, iter_i, 20, compute_stx_on_the_fly)
+  call generalized_eigensolver(compute_matrix_on_the_fly, eigenvalues_DPR, eigenvectors_DPR, &
+       lowest, "DPR", 1000, 1d-8, iter_i, 20, compute_stx_on_the_fly)
 
-  ! print *, "eigenvalues: ", eigenvalues_DPR
+  do j=1,lowest
+     xs = matmul(mtx, eigenvectors_DPR(:, j)) - (eigenvalues_DPR(j) * matmul(stx, eigenvectors_DPR(:, j)))
+     print *, "error: ", norm(xs)
+     print *, "eigenvalue ", j, ": ", eigenvalues_DPR(j), " succeeded: ", norm(xs) < 1d-8
+  end do
+
   
 end program main
  
