@@ -1,7 +1,7 @@
 program main
   
   use numeric_kinds, only: dp
-  use davidson, only: generalized_eigensolver, norm, lapack_generalized_eigensolver, generate_diagonal_dominant
+  use davidson, only: generalized_eigensolver, norm, generate_diagonal_dominant
   use test_utils, only: diagonal
 
   implicit none

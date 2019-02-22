@@ -69,7 +69,8 @@ end module test_utils
 
 program main
   use numeric_kinds, only: dp
-  use davidson, only: generalized_eigensolver, norm, lapack_generalized_eigensolver, generate_diagonal_dominant
+  use davidson, only: generalized_eigensolver, norm, generate_diagonal_dominant
+  use lapack_wrapper, only: lapack_generalized_eigensolver
   use test_utils, only: diagonal , read_matrix, write_vector, cast_to_double
   use benchmark, only: compute_benchmark
 

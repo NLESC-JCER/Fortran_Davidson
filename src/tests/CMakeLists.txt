@@ -11,7 +11,7 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE  
   )
 
-set(NUMPY_TEST_SRC ${CMAKE_SOURCE_DIR}/src/davidson.f90 ${CMAKE_SOURCE_DIR}/src/numeric_kinds.f90)
+set(NUMPY_TEST_SRC ${CMAKE_SOURCE_DIR}/src/davidson.f90 ${CMAKE_SOURCE_DIR}/src/lapack_wrapper.f90 ${CMAKE_SOURCE_DIR}/src/numeric_kinds.f90)
 
 set(test_cases test_call_lapack test_dense_numpy test_free_numpy test_dense_properties test_free_properties)
 
