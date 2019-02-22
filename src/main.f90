@@ -3,45 +3,6 @@ module test_utils
   implicit none
 
 contains
-  function diagonal(matrix)
-    !> return the diagonal of a matrix
-    real(dp), dimension(:, :), intent(in) :: matrix
-    real(dp), dimension(size(matrix, 1)) :: diagonal
-
-    ! local variables
-    integer :: i, j, m
-
-    ! dimension of the matrix
-    m = size(matrix, 1)
-    
-    do i=1,m
-       do j=1,m
-          if  (i == j) then
-             diagonal(i) = matrix(i, j)
-          end if
-       end do
-    end do
-
-  end function diagonal
-
-  function read_matrix(path_file, dim) result(mtx)
-    !> read a row-major square matrix from a file
-    !> \param path_file: path to the file
-    !> \param dim: dimension of the square matrix
-    !> \return matrix 
-
-    character(len=*), intent(in) :: path_file
-    integer, intent(in) :: dim
-    real(dp), dimension(dim, dim) :: mtx
-    integer :: i
-    
-    open(unit=3541, file=path_file, status="OLD")
-    do i=1,dim
-       read(3541, *) mtx(i, :)
-    end do
-    close(3541)
-    
-  end function read_matrix
 
   subroutine write_vector(path_file, vector)
     !> Write vector to path_file
@@ -72,7 +33,7 @@ program main
   use davidson, only: generalized_eigensolver
   use lapack_wrapper, only: lapack_generalized_eigensolver
   use array_utils, only: norm, generate_diagonal_dominant
-  use test_utils, only: diagonal , read_matrix, write_vector, cast_to_double
+  use test_utils, only: write_vector, cast_to_double
   use benchmark, only: compute_benchmark
 
   implicit none
