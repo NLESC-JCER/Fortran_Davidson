@@ -1,0 +1,22 @@
+# YAML 1.2
+---
+abstract: "Davidson eigensolver implemented in Fortran"
+authors: 
+  -
+    family-names: Zapata
+    given-names: Felipe
+    orcid: "https://orcid.org/0000-0001-8286-677X"
+  -
+    family-names: Renaud
+    given-names: Nicolas
+cff-version: "1.0.3"
+date-released: 2019-02-22
+keywords: 
+  - Eigenvalues
+  - "Computational Chemistry"
+  - Fortran
+license: "Apache-2.0"
+message: "If you use this software, please cite it using these metadata."
+title: "Fortran Davidson"
+version: "v0.0.2"
+...

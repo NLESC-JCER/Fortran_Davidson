@@ -11,7 +11,7 @@
  matrix elements involved with the new correction vector.
  
  * Used as maximum dimension of the subspace 10 times the number of requested eigenvalues.
-x
+
 # Version 0.0.1
 
 ## Dependencies

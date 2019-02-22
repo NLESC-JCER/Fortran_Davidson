@@ -1,0 +1,21 @@
+{
+    "creators": [
+        {
+            "name": "Zapata, Felipe",
+            "orcid": "0000-0001-8286-677X"
+        },
+        {
+            "name": "Renaud, Nicolas"
+        }
+    ],
+    "description": "Davidson eigensolver implemented in Fortran",
+    "keywords": [
+        "Eigenvalues",
+        "Computational Chemistry",
+        "Fortran"
+    ],
+    "license": {
+        "id": "Apache-2.0"
+    },
+    "title": "Fortran Davidson"
+}
