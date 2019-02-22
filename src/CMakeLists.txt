@@ -1,7 +1,7 @@
 
 # create binary
 set(UTILS array_utils.f90 numeric_kinds.f90 lapack_wrapper.f90)
-set(SOURCES main.f90 davidson.f90 benchmark.f90 ${UTILS})
+set(SOURCES main.f90 davidson.f90 ${UTILS})
 message (STATUS "SOURCES: " ${SOURCES})
 add_executable(main ${SOURCES})
 
