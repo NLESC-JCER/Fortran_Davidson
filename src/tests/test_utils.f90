@@ -1,58 +1,42 @@
 
 module test_utils
   use numeric_kinds, only: dp
-  use davidson, only: generate_diagonal_dominant
+  use davidson, only: generate_diagonal_dominant, free_matmul
   implicit none
   
 contains
 
-  function expensive_function_1(i, dim) result (vector)
-    !> expensive function to test matrix free version
 
-    integer, intent(in) :: i, dim
-    real(dp), dimension(dim) :: vector
+  function apply_mtx_to_vect(input_vect) result (output_vect)
+    !> \brief Function to compute the optional mtx on the fly
+    !> \param[in] i column/row to compute from mtx
+    !> \param vec column/row from mtx
     
-    ! local variable
-    integer :: j
-    real(dp) :: x, y
-    
-    x = exp(real(i)/real(dim))
-    
-    do j=1,dim
-       y = exp(real(j)/real(dim))
-       if (j >= i) then
-          vector(j) = cos(log(sqrt(atan2(x, y)))) * 1e-4
-       else
-          vector(j) = cos(log(sqrt(atan2(y, x)))) * 1e-4
-       endif
-    end do
-    
-  end function expensive_function_1
+    real (dp), dimension(:,:), intent(in) :: input_vect
+    real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
 
-  function expensive_function_2(i, dim) result (vector)
-    !> expensive function to test matrix free version
-    
-    integer, intent(in) :: i, dim
-    real(dp), dimension(dim) :: vector
-    
-    ! local variable
-    integer :: j
-    real(dp) :: x, y
-    
-    x = exp(real(i)/real(dim))
-    
-    do j=1,dim
-       y = exp(real(j)/real(dim))
-       if (j >= i) then
-          vector(j) = sin(log(sqrt(atan2(x, y)))) * 1e-4
-       else
-          vector(j) = sin(log(sqrt(atan2(y, x)))) * 1e-4
-       endif
-    end do
-    
-  end function expensive_function_2
+    output_vect = free_matmul(compute_matrix_on_the_fly,input_vect)
 
-  
+  end function apply_mtx_to_vect
+
+
+
+  function apply_stx_to_vect(input_vect) result (output_vect)
+    !> \brief Function to compute the optional mtx on the fly
+    !> \param[in] i column/row to compute from mtx
+    !> \param vec column/row from mtx
+    
+    real (dp), dimension(:,:), intent(in) :: input_vect
+    real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
+
+    output_vect = free_matmul(compute_stx_on_the_fly,input_vect)
+
+  end function apply_stx_to_vect
+
+
+
+
+
   function compute_matrix_on_the_fly(i, dim) result (vector)
     !> \param[in] i index of the i-th column
     !> \param[in] dim dimension of the resulting column
@@ -86,8 +70,10 @@ contains
     
   end function compute_stx_on_the_fly
 
-  
-  
+
+
+
+
   function diagonal(matrix)
     !> return the diagonal of a matrix
     real(dp), dimension(:, :), intent(in) :: matrix
@@ -108,6 +94,10 @@ contains
     end do
 
   end function diagonal
+
+
+
+
 
   function read_matrix(path_file, dim) result(mtx)
     !> read a row-major square matrix from a file
@@ -142,6 +132,9 @@ contains
     close(314)
     
   end subroutine write_vector
+
+
+
 
   subroutine write_matrix(path_file, mtx)
     !> Write matrix to path_file

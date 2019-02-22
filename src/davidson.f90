@@ -102,8 +102,8 @@ module davidson
   
 contains    
 
-  subroutine generalized_eigensolver_free(fun_mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
-       tolerance, iters, max_dim_sub, fun_stx)
+  subroutine generalized_eigensolver_free(fun_mtx_gemv, eigenvalues, ritz_vectors, lowest, method, max_iters, &
+       tolerance, iters, max_dim_sub, fun_stx_gemv)
     !> \brief use a pair of functions fun_mtx and fun_stx to compute on the fly the matrices to solve
     !>  the general eigenvalue problem
     !> The current implementation uses a general  davidson algorithm, meaning
@@ -111,8 +111,8 @@ contains
     !> The family of Davidson algorithm only differ in the way that the correction
     !> vector is computed.
     
-    !> \param[in] fun_mtx: Function to compute the Matrix to diagonalize
-    !> \param[in, opt] fun_stx: function to compute the optional general eigenvalue problem.
+    !> \param[in] fun_mtx_gemv: Function to apply the matrix to a buncof vectors
+    !> \param[in, opt] fun_stx_gemv: (optional) function to apply the pencil to a bunch of vectors.
     !> \param[out] eigenvalues Computed eigenvalues
     !> \param[out] ritz_vectors approximation to the eigenvectors
     !> \param[in] lowest Number of lowest eigenvalues/ritz_vectors to compute
@@ -126,7 +126,9 @@ contains
     !> \param[in, opt] max_dim_sub: maximum dimension of the subspace search   
     !> \param[out] iters: Number of iterations until convergence
     !> \return eigenvalues and ritz_vectors of the matrix `mtx`
+
     implicit none
+
     ! input/output variable
     integer, intent(in) :: lowest
     real(dp), dimension(lowest), intent(out) :: eigenvalues
@@ -139,34 +141,34 @@ contains
     
     ! Function to compute the target matrix on the fly
     interface
-       function fun_mtx(i, dim) result(vec)
+
+       function fun_mtx_gemv(input_vect) result(output_vect)
          !> \brief Function to compute the optional mtx on the fly
          !> \param[in] i column/row to compute from mtx
          !> \param vec column/row from mtx
          use numeric_kinds, only: dp
-         integer, intent(in) :: i
-         integer, intent(in) :: dim         
-         real(dp), dimension(dim) :: vec
+         real (dp), dimension(:,:), intent(in) :: input_vect
+         real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
 
-       end function fun_mtx
+       end function fun_mtx_gemv
        
-       function fun_stx(i, dim) result(vec)
+       function fun_stx_gemv(input_vect) result(output_vect)
          !> \brief Fucntion to compute the optional stx matrix on the fly
          !> \param[in] i column/row to compute from stx
          !> \param vec column/row from stx
          use numeric_kinds, only: dp
-         integer, intent(in) :: i
-         integer, intent(in) :: dim         
-         real(dp), dimension(dim) :: vec
+         real(dp), dimension(:,:) intent(in) :: input_vect
+         real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
          
-       end function fun_stx
+       end function fun_stx_gemv
+
     end interface
     
     !local variables
     integer :: dim_mtx, dim_sub, max_dim, i, j
     
     ! ! Basis of subspace of approximants
-    real(dp), dimension(size(ritz_vectors, 1)) :: guess, rs
+    real(dp), dimension(size(ritz_vectors, 1)) :: guess, rs, diag_mtx, diag_stx
     real(dp), dimension(lowest):: errors
     
     ! ! Working arrays
@@ -182,6 +184,10 @@ contains
     else
        max_dim = lowest * 10
     endif
+
+    ! extract the diagonals of the matrices
+    diag_mtx = extract_diagonal_free(fun_mtx_gemv)
+    diag_stx = extract_diagonal_free(fun_stx_gemv)
     
     ! dimension of the matrix
     dim_mtx = size(ritz_vectors, 1)
@@ -190,11 +196,12 @@ contains
     V = eye(dim_mtx, dim_sub) ! Initial orthonormal basis
     
     ! 2. Generate subspace matrix problem by projecting into V
-    mtx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_mtx, V))
-    stx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_stx, V))
+    mtx_proj = lapack_matmul('T', 'N', V, fun_mtx_gemv(V))
+    stx_proj = lapack_matmul('T', 'N', V, fun_stx_gemv(V))
     
     ! Outer loop block Davidson schema
     outer_loop: do i=1, max_iters
+
        ! 3. compute the eigenvalues and their corresponding ritz_vectors
        ! for the projected matrix using lapack
        call check_deallocate_matrix(eigenvectors_sub)
@@ -211,8 +218,8 @@ contains
        ! 4. Check for convergence
        ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
        do j=1,lowest
-          guess = eigenvalues_sub(j) * free_matrix_vector(fun_stx, ritz_vectors(:, j), dim_mtx)
-          rs = free_matrix_vector(fun_mtx, ritz_vectors(:, j), dim_mtx) - guess
+          guess = eigenvalues_sub(j) * fun_stx_gemv(ritz_vectors(:, j))
+          rs = fun_mtx_gemv(ritz_vectors(:, j)) - guess
           errors(j) = norm(rs)
        end do
        
@@ -228,7 +235,7 @@ contains
           call check_deallocate_matrix(correction)
           allocate(correction(size(ritz_vectors, 1), size(V, 2)))
           
-          correction = compute_DPR_free(fun_mtx, fun_stx, V, eigenvalues_sub, eigenvectors_sub)
+          correction = compute_DPR_free(fun_mtx_gemv, fun_stx_gemv, V, eigenvalues_sub, eigenvectors_sub, diag_mtx, diag_stx)
           
           ! 6. Increase Basis size
           call concatenate(V, correction)
@@ -236,10 +243,9 @@ contains
           ! 7. Orthogonalize basis
           call lapack_qr(V)
           
-          
           ! 8. Update the the projection 
-          call update_projection_free(fun_mtx, V, mtx_proj)
-          call update_projection_free(fun_stx, V, stx_proj)
+          call update_projection_free(fun_mtx_gemv, V, mtx_proj)
+          call update_projection_free(fun_stx_gemv, V, stx_proj)
           
        else
           
@@ -247,8 +253,8 @@ contains
           V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :dim_sub))
           
           ! we refresh the projected matrices
-          mtx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_mtx, V))
-          stx_proj = lapack_matmul('T', 'N', V, free_matmul(fun_stx, V))
+          mtx_proj = lapack_matmul('T', 'N', V, fun_mtx_gemv(V))
+          stx_proj = lapack_matmul('T', 'N', V, fun_stx_gemv(V))
           
        end if
        
@@ -273,7 +279,8 @@ contains
     
   end subroutine generalized_eigensolver_free
     
-    function compute_DPR_free(fun_mtx, fun_stx, V, eigenvalues, eigenvectors) result(correction)
+    function compute_DPR_free(fun_mtx_gemv, fun_stx_gemv, V, eigenvalues, eigenvectors, diag_mtx, diag_stx) result(correction)
+
       !> compute the correction vector using the DPR method for a matrix free diagonalization
       !> See correction_methods submodule for the implementations
       !> \param[in] fun_mtx: function to compute matrix
@@ -285,107 +292,88 @@ contains
       
       real(dp), dimension(:), intent(in) :: eigenvalues
       real(dp), dimension(:, :), intent(in) :: V, eigenvectors
-      real(dp), dimension(size(V, 1), size(V, 2)) :: correction
-      
+      real(dp), dimension(:,:), intent(in) :: diag_mtx, diag_stx
+
+
+      ! Function to compute the target matrix on the fly
       interface
-         function fun_mtx(i, dim) result(vec)
+
+         function fun_mtx_gemv(input_vect) result(output_vect)
            !> \brief Function to compute the optional mtx on the fly
            !> \param[in] i column/row to compute from mtx
            !> \param vec column/row from mtx
            use numeric_kinds, only: dp
-           integer, intent(in) :: i
-           integer, intent(in) :: dim
-           real(dp), dimension(dim) :: vec
-           
-         end function fun_mtx
+           real (dp), dimension(:,:), intent(in) :: input_vect
+           real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
+
+         end function fun_mtx_gemv
          
-         function fun_stx(i, dim) result(vec)
+         function fun_stx_gemv(input_vect) result(output_vect)
            !> \brief Fucntion to compute the optional stx matrix on the fly
            !> \param[in] i column/row to compute from stx
            !> \param vec column/row from stx
            use numeric_kinds, only: dp
-           integer, intent(in) :: i
-           integer, intent(in) :: dim         
-           real(dp), dimension(dim) :: vec
+           real(dp), dimension(:,:) intent(in) :: input_vect
+           real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
            
-         end function fun_stx
-         
+         end function fun_stx_gemv
+
       end interface
       
       ! local variables
+      real(dp), dimension(size(V, 1), size(V, 2)) :: vector, correction
       integer :: ii, j
-      real(dp), dimension(size(V, 1)) :: diag_mtx, diag_stx, rs, vector
+    
+      vectors = lapack_matrix_vector('N', V, eigenvectors)
+      correction = fun_mtx_gemv(vector) - eigenval * fun_stx_gemv(vector)
+      
       
       do j=1, size(V, 2)
-         vector = lapack_matrix_vector('N', V, eigenvectors(:, j))
-         call compute_error(fun_mtx, fun_stx, eigenvalues(j), vector, rs, diag_mtx, diag_stx)
-         correction(:, j) = rs
          do ii=1,size(correction,1)
             correction(ii, j) = correction(ii, j) / (eigenvalues(j) * diag_stx(ii)  - diag_mtx(ii))
          end do
       end do
       
     end function compute_DPR_free
-    
-    subroutine compute_error(fun_mtx, fun_stx, eigenval, vector, rs, diag_mtx, diag_stx)
-      !> \brief compute the multiplication: (mtx - eigenval) * vector and
-      !> return the diagonal of the matrix
-      !> \param[in] fun_mtx: function to compute the matrix
-      !> \param[in] fun_stx: function to compute the matrix for the generalized case
-      !> \param[in] eigenval
-      !> \param[in] vector
-      !> \param[out] rs correction vector
-      !> \param[out] diagonal elements of the matrix
-      !> \param[out] diagonal elements of the matrix to compute the generalized problem
-      real(dp), dimension(:), intent(in) :: vector
-      real(dp), dimension(:), intent(out) :: diag_mtx, diag_stx, rs
-      real(dp) :: eigenval
-      
-      ! local variables
-      integer :: i
-      real(dp), dimension(size(vector)) ::xs, ys
-      
-      interface
-         function fun_mtx(i, dim) result(vec)
+  
+
+  function extract_diagonal_free(fun_A_gemv,dim) result(out)
+    !> \brief extract the diagonal of the matrix
+    !> \param dim: dimension of the matrix
+
+
+    implicit none
+    integer, intent(in) :: dim
+    real(dp), dimension(dim) :: out
+
+
+    interface
+         function fun_A_gemv(input_vect) result(output_vect)
            !> \brief Function to compute the optional mtx on the fly
            !> \param[in] i column/row to compute from mtx
-           !> \param[in] j optional second index
            !> \param vec column/row from mtx
            use numeric_kinds, only: dp
-           integer, intent(in) :: i
-           integer, intent(in) :: dim
-           real(dp), dimension(dim) :: vec
-           
-         end function fun_mtx
-         
-         function fun_stx(i, dim) result(vec)
-           !> \brief Fucntion to compute the optional stx matrix on the fly
-           !> \param[in] i column/row to compute from stx
-           !> \param vec column/row from stx
-           use numeric_kinds, only: dp
-           integer, intent(in) :: i
-           integer, intent(in) :: dim         
-           real(dp), dimension(dim) :: vec
-           
-         end function fun_stx
-         
-      end interface
-      
-      !$OMP PARALLEL DO &
-      !$OMP PRIVATE(i, xs, ys)
-      do i = 1, size(vector)
-         xs = fun_mtx(i, size(vector))
-         ys = fun_stx(i, size(vector))
-         diag_mtx(i) = xs(i)
-         diag_stx(i) = ys(i)
-         xs = xs - eigenval * ys
-         rs(i) = dot_product(xs, vector)
-      end do
-      !$OMP END PARALLEL DO
-      
-    end subroutine compute_error
-  
-  subroutine update_projection_free(fun_A, V, A_proj)
+           real (dp), dimension(:,:), intent(in) :: input_vect
+           real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
+
+         end function fun_A_gemv
+    end interface
+
+    ! local variable
+    integer :: ii
+    real(dp), dimension(dim) :: tmp_array
+    
+    do ii = 1,dim
+      tmp_array = 0E0
+      tmp_array(ii) = 1.0
+      tmp_array = fun_A_gemv(tmp_array)
+      out(ii) = tmp_array(ii)
+    end do
+
+  end function extract_diagonal_free
+
+
+  subroutine update_projection_free(fun_A_gemv, V, A_proj)
     !> \brief update the projected matrices
     !> \param A: full matrix
     !> \param V: projector
@@ -397,16 +385,15 @@ contains
     real(dp), dimension(:, :), allocatable :: tmp_array
 
     interface
-       function fun_A(i, dim) result(vec)
-         !> \brief Function to compute the optional mtx on the fly
-         !> \param[in] i column/row to compute from mtx
-         !> \param vec column/row from mtx
-         use numeric_kinds, only: dp
-         integer, intent(in) :: i
-         integer, intent(in) :: dim
-         real(dp), dimension(dim) :: vec
-         
-       end function fun_A
+         function fun_A_gemv(input_vect) result(output_vect)
+           !> \brief Function to compute the optional mtx on the fly
+           !> \param[in] i column/row to compute from mtx
+           !> \param vec column/row from mtx
+           use numeric_kinds, only: dp
+           real (dp), dimension(:,:), intent(in) :: input_vect
+           real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
+
+         end function fun_A_gemv
     end interface
     
     ! local variables
@@ -419,7 +406,7 @@ contains
     ! move to temporal array
     allocate(tmp_array(nvec, nvec))
     tmp_array(:old_dim, :old_dim) = A_proj
-    tmp_array(:,old_dim+1:) = lapack_matmul('T', 'N', V, free_matmul(fun_A, V(:, old_dim+1:)))
+    tmp_array(:,old_dim+1:) = lapack_matmul('T', 'N', V, fun_A_gemv(V(:, old_dim+1:)))
     tmp_array( old_dim+1:,:old_dim ) = transpose(tmp_array(:old_dim, old_dim+1:))
     
     ! Move to new expanded matrix
@@ -472,43 +459,6 @@ contains
     !$OMP END PARALLEL DO
     
   end function free_matmul
-
-  function free_matrix_vector(fun, vector, dim_result) result(rs)
-    !> \brief perform a matrix vector multiplcation computing the matrix on the fly
-    !> \param[in] fun Function to compute a matrix on the fly
-    !> \param[in] vector to multiply with fun
-    !> \return resulting matrix
-
-    ! input/output
-    implicit none
-    integer, intent(in) :: dim_result
-    real(dp), dimension(:), intent(in) :: vector
-    real(dp), dimension(dim_result) :: rs
-
-    interface
-       function fun(i, dim) result(vec)
-         !> \brief Fucntion to compute the matrix `mtx` on the fly
-         !> \param[in] i column/row to compute from `mtx`
-         !> \param vec column/row from mtx
-         use numeric_kinds, only: dp
-         integer, intent(in) :: i
-         integer, intent(in) :: dim         
-         real(dp), dimension(dim) :: vec
-
-       end function fun
-    end interface
-
-    ! local variables
-    integer :: i
-
-    !$OMP PARALLEL DO &
-    !$OMP PRIVATE(i)
-    do i = 1, dim_result
-       rs(i) = dot_product(fun(i, size(vector)), vector)
-    end do
-    !$OMP END PARALLEL DO
-
-  end function free_matrix_vector
 
   subroutine check_deallocate_matrix(mtx)
     !> deallocate a matrix if allocated
