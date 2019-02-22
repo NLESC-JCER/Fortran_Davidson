@@ -2,7 +2,7 @@ program main
   
   use numeric_kinds, only: dp
   use davidson, only: generalized_eigensolver, norm, generate_diagonal_dominant
-  use test_utils, only: compute_matrix_on_the_fly, compute_stx_on_the_fly, diagonal, write_matrix
+  use test_utils, only: apply_mtx_to_vect, apply_stx_to_vect, compute_matrix_on_the_fly, compute_stx_on_the_fly, diagonal, write_matrix
   
   implicit none
 
@@ -19,8 +19,8 @@ program main
   end do
 
   
-  call generalized_eigensolver(compute_matrix_on_the_fly, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 1000, &
-       1d-8, iter_i, 20, compute_stx_on_the_fly)
+  call generalized_eigensolver(apply_mtx_to_vect, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 1000, &
+       1d-8, iter_i, 20, apply_stx_to_vect)
 
   print *, "eigenvalues: ", eigenvalues_DPR
   print *, "Test 1"

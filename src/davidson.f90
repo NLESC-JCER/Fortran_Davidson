@@ -10,7 +10,7 @@ module davidson
   !> \private
   private
   !> \public
-  public :: eye, generalized_eigensolver, generate_diagonal_dominant, norm
+  public :: eye, generalized_eigensolver, generate_diagonal_dominant, norm, free_matmul
   
   interface generalized_eigensolver
   !> \brief Solve a (general) eigenvalue problem using different types of Davidson algorithms.
@@ -157,7 +157,7 @@ contains
          !> \param[in] i column/row to compute from stx
          !> \param vec column/row from stx
          use numeric_kinds, only: dp
-         real(dp), dimension(:,:) intent(in) :: input_vect
+         real(dp), dimension(:,:), intent(in) :: input_vect
          real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
          
        end function fun_stx_gemv
@@ -168,7 +168,8 @@ contains
     integer :: dim_mtx, dim_sub, max_dim, i, j
     
     ! ! Basis of subspace of approximants
-    real(dp), dimension(size(ritz_vectors, 1)) :: guess, rs, diag_mtx, diag_stx
+    real(dp), dimension(size(ritz_vectors, 1),1) :: guess, rs
+    real(dp), dimension(size(ritz_vectors, 1)  ) :: diag_mtx, diag_stx
     real(dp), dimension(lowest):: errors
     
     ! ! Working arrays
@@ -184,13 +185,13 @@ contains
     else
        max_dim = lowest * 10
     endif
-
-    ! extract the diagonals of the matrices
-    diag_mtx = extract_diagonal_free(fun_mtx_gemv)
-    diag_stx = extract_diagonal_free(fun_stx_gemv)
     
     ! dimension of the matrix
     dim_mtx = size(ritz_vectors, 1)
+
+    ! extract the diagonals of the matrices
+    diag_mtx = extract_diagonal_free(fun_mtx_gemv,dim_mtx)
+    diag_stx = extract_diagonal_free(fun_stx_gemv,dim_mtx)
     
     ! 1. Variables initialization
     V = eye(dim_mtx, dim_sub) ! Initial orthonormal basis
@@ -218,9 +219,9 @@ contains
        ! 4. Check for convergence
        ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
        do j=1,lowest
-          guess = eigenvalues_sub(j) * fun_stx_gemv(ritz_vectors(:, j))
-          rs = fun_mtx_gemv(ritz_vectors(:, j)) - guess
-          errors(j) = norm(rs)
+          guess = eigenvalues_sub(j) * fun_stx_gemv(reshape(ritz_vectors(:, j),(/dim_mtx,1/) ) )
+          rs = fun_mtx_gemv(reshape(ritz_vectors(:, j), (/dim_mtx,1/))) - guess
+          errors(j) = norm(reshape(rs,(/dim_mtx/)))
        end do
        
        if (all(errors < tolerance)) then
@@ -292,7 +293,7 @@ contains
       
       real(dp), dimension(:), intent(in) :: eigenvalues
       real(dp), dimension(:, :), intent(in) :: V, eigenvectors
-      real(dp), dimension(:,:), intent(in) :: diag_mtx, diag_stx
+      real(dp), dimension(:), intent(in) :: diag_mtx, diag_stx
 
 
       ! Function to compute the target matrix on the fly
@@ -313,7 +314,7 @@ contains
            !> \param[in] i column/row to compute from stx
            !> \param vec column/row from stx
            use numeric_kinds, only: dp
-           real(dp), dimension(:,:) intent(in) :: input_vect
+           real(dp), dimension(:,:), intent(in) :: input_vect
            real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
            
          end function fun_stx_gemv
@@ -321,14 +322,13 @@ contains
       end interface
       
       ! local variables
-      real(dp), dimension(size(V, 1), size(V, 2)) :: vector, correction
+      real(dp), dimension(size(V, 1),1) :: vector
+      real(dp), dimension(size(V, 1), size(V, 2)) :: correction
       integer :: ii, j
-    
-      vectors = lapack_matrix_vector('N', V, eigenvectors)
-      correction = fun_mtx_gemv(vector) - eigenval * fun_stx_gemv(vector)
-      
-      
+            
       do j=1, size(V, 2)
+         vector(:,1) = lapack_matrix_vector('N', V, eigenvectors(:,j))
+         correction = fun_mtx_gemv(vector) - eigenvalues(j) * fun_stx_gemv(vector)
          do ii=1,size(correction,1)
             correction(ii, j) = correction(ii, j) / (eigenvalues(j) * diag_stx(ii)  - diag_mtx(ii))
          end do
@@ -361,13 +361,13 @@ contains
 
     ! local variable
     integer :: ii
-    real(dp), dimension(dim) :: tmp_array
+    real(dp), dimension(dim,1) :: tmp_array
     
     do ii = 1,dim
       tmp_array = 0E0
-      tmp_array(ii) = 1.0
+      tmp_array(ii,1) = 1.0
       tmp_array = fun_A_gemv(tmp_array)
-      out(ii) = tmp_array(ii)
+      out(ii) = tmp_array(ii,1)
     end do
 
   end function extract_diagonal_free

@@ -72,6 +72,53 @@ contains
 
 
 
+  function expensive_function_1(i, dim) result (vector)
+    !> expensive function to test matrix free version
+
+    integer, intent(in) :: i, dim
+    real(dp), dimension(dim) :: vector
+    
+    ! local variable
+    integer :: j
+    real(dp) :: x, y
+    
+    x = exp(real(i)/real(dim))
+    
+    do j=1,dim
+       y = exp(real(j)/real(dim))
+       if (j >= i) then
+          vector(j) = cos(log(sqrt(atan2(x, y)))) * 1e-4
+       else
+          vector(j) = cos(log(sqrt(atan2(y, x)))) * 1e-4
+       endif
+    end do
+    
+  end function expensive_function_1
+
+  function expensive_function_2(i, dim) result (vector)
+    !> expensive function to test matrix free version
+    
+    integer, intent(in) :: i, dim
+    real(dp), dimension(dim) :: vector
+    
+    ! local variable
+    integer :: j
+    real(dp) :: x, y
+    
+    x = exp(real(i)/real(dim))
+    
+    do j=1,dim
+       y = exp(real(j)/real(dim))
+       if (j >= i) then
+          vector(j) = sin(log(sqrt(atan2(x, y)))) * 1e-4
+       else
+          vector(j) = sin(log(sqrt(atan2(y, x)))) * 1e-4
+       endif
+    end do
+    
+  end function expensive_function_2
+
+
 
 
   function diagonal(matrix)
