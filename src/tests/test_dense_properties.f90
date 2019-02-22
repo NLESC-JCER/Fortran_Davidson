@@ -1,8 +1,8 @@
 program main
   
   use numeric_kinds, only: dp
-  use davidson, only: generalized_eigensolver, norm, lapack_generalized_eigensolver, generate_diagonal_dominant
-  use test_utils, only: diagonal
+  use davidson, only: generalized_eigensolver
+  use array_utils, only: diagonal, norm, generate_diagonal_dominant
 
   implicit none
 

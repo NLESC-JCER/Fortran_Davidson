@@ -11,7 +11,11 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE  
   )
 
-set(NUMPY_TEST_SRC ${CMAKE_SOURCE_DIR}/src/davidson.f90 ${CMAKE_SOURCE_DIR}/src/numeric_kinds.f90)
+set(SOURCE_DAVIDSON array_utils davidson lapack_wrapper numeric_kinds)
+foreach(PROG ${SOURCE_DAVIDSON})
+  list(APPEND NUMPY_TEST_SRC ${CMAKE_SOURCE_DIR}/src/${PROG}.f90)
+endforeach(PROG)
+# set(NUMPY_TEST_SRC ${CMAKE_SOURCE_DIR}/src/davidson.f90 ${CMAKE_SOURCE_DIR}/src/lapack_wrapper.f90 ${CMAKE_SOURCE_DIR}/src/numeric_kinds.f90)
 
 set(test_cases test_call_lapack test_dense_numpy test_free_numpy test_dense_properties test_free_properties)
 

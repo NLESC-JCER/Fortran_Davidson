@@ -1,6 +1,7 @@
 
 # create binary
-set(SOURCES main.f90 numeric_kinds.f90 davidson.f90 benchmark.f90)
+set(UTILS array_utils.f90 numeric_kinds.f90 lapack_wrapper.f90)
+set(SOURCES main.f90 davidson.f90 ${UTILS})
 message (STATUS "SOURCES: " ${SOURCES})
 add_executable(main ${SOURCES})
 
@@ -29,7 +30,7 @@ target_compile_options(main
 target_link_libraries(main PRIVATE ${LINEAR_ALGEBRA} ${OpenMP_Fortran_FLAGS})
 
 # Benchmark free matrix
-add_executable(benchmark_free benchmark_free.f90 davidson.f90 numeric_kinds.f90)
+add_executable(benchmark_free benchmark_free.f90 davidson.f90 ${UTILS})
 
 target_compile_options(main
   PRIVATE
