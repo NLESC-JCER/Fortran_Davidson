@@ -230,8 +230,6 @@ contains
           exit
        end if
        
-       
-
        ! 5. Add the correction vectors to the current basis
        if (size(V, 2) <= max_dim) then
           
@@ -325,16 +323,27 @@ contains
       end interface
       
       ! local variables
-      real(dp), dimension(size(V, 1),1) :: vector
-      real(dp), dimension(size(V, 1), size(V, 2)) :: correction
+      !real(dp), dimension(size(V, 1),1) :: vector
+      real(dp), dimension(size(V, 1), size(V, 2)) :: correction, vectors
+      real(dp), dimension(size(V, 2),size(V, 2)) :: diag_eigenvalues
       integer :: ii, j
       integer :: dim
             
       dim = size(V,1)
 
+      ! create a diagonal matrix of eigenvalues
+      diag_eigenvalues = 0E0
+      do ii =1, size(V,2)
+        diag_eigenvalues(ii,ii) = eigenvalues(ii)
+      end do
+
+      ! create all the ritz vectors
+      vectors = lapack_matmul('N','N', V, eigenvectors)
+
+      ! initialize the correction vectors
+      correction = fun_mtx_gemv(vectors) - lapack_matmul('N','N',fun_stx_gemv(vectors), diag_eigenvalues)
+
       do j=1, size(V, 2)
-         vector(:,1) = lapack_matrix_vector('N', V, eigenvectors(:,j))
-         correction(:,j) = reshape(fun_mtx_gemv(vector) - eigenvalues(j) * fun_stx_gemv(vector),(/dim/))
          do ii=1,size(correction,1)
             correction(ii, j) = correction(ii, j) / (eigenvalues(j) * diag_stx(ii)  - diag_mtx(ii))
          end do
