@@ -1,7 +1,7 @@
 program main
   use numeric_kinds, only: dp
   use test_utils, only:  write_matrix, write_vector
-  use davidson, only: generate_diagonal_dominant, lapack_generalized_eigensolver
+  use davidson, only: generate_diagonal_dominant, lapack_generalized_eigensolver, lapack_qr
   
   implicit none
 
@@ -28,6 +28,8 @@ program main
   call write_vector("test_lapack_eigenvalues_gen.txt",eigenvalues)
   call write_matrix("test_lapack_eigenvectors_gen.txt",eigenvectors)
 
-  
+  ! Lapack orthonormalization
+  call lapack_qr(mtx)
+  call write_matrix("test_lapack_qr.txt", mtx)
   
 end program main

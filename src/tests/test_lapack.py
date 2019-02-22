@@ -18,8 +18,13 @@ def check_with_numpy(files: list) -> None:
     names = ["test_lapack_{}.txt".format(x) for x in ("eigenvalues", "eigenvectors", "matrix")]
     names_generalized = ["test_lapack_eigenvalues_gen.txt", "test_lapack_eigenvectors_gen.txt",
                          "test_lapack_matrix.txt", "test_lapack_stx.txt"]
+    print("STANDARD EIGENVALUE PROBLEM")
     check_lapack_eigensolver(names)
+    print("GENERALIZED EIGENVALUE PROBLEM")
     check_lapack_eigensolver(names_generalized, True)
+
+    # test QR
+    check_lapack_qr("test_lapack_qr.txt", "test_lapack_matrix.txt")
 
 
 def check_lapack_eigensolver(names: list, generalized: bool = False) -> None:
@@ -44,6 +49,22 @@ def check_lapack_eigensolver(names: list, generalized: bool = False) -> None:
     # compare the results
     assert np.allclose(es_wrapper, es_numpy)
     assert np.allclose(np.abs(vs_wrapper), np.abs(vs_numpy))
+    print("Check that the call to Lapack produce the same value that Numpy: True")
+
+
+def check_lapack_qr(file_qr: str, file_matrix: str) -> None:
+    """
+    Compare the QR subroutine to the one in Numpy
+    """
+    qr, mtx = [np.loadtxt(x) for x in [file_qr, file_matrix]]
+    dim = int(np.sqrt(mtx.size))
+    mtx = mtx.reshape(dim, dim)
+    qr = qr.reshape(dim, dim)
+
+    q_numpy, _r = np.linalg.qr(mtx)
+
+    np.allclose(qr, q_numpy)
+    print("COMPARE THE QR SUBROUTINE TO THE ONE IN NUMPY")
 
 
 def main():
