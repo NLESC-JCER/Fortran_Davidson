@@ -34,7 +34,6 @@ program main
   use lapack_wrapper, only: lapack_generalized_eigensolver
   use array_utils, only: norm, generate_diagonal_dominant
   use test_utils, only: write_vector, cast_to_double
-  use benchmark, only: compute_benchmark
 
   implicit none
 
