@@ -1,7 +1,7 @@
 
 module test_utils
   use numeric_kinds, only: dp
-  use davidson, only: generate_diagonal_dominant
+  use array_utils, only: generate_diagonal_dominant
   implicit none
   
 contains
@@ -85,30 +85,7 @@ contains
     vector(i) = 1d0
     
   end function compute_stx_on_the_fly
-
   
-  
-  function diagonal(matrix)
-    !> return the diagonal of a matrix
-    real(dp), dimension(:, :), intent(in) :: matrix
-    real(dp), dimension(size(matrix, 1)) :: diagonal
-
-    ! local variables
-    integer :: i, j, m
-
-    ! dimension of the matrix
-    m = size(matrix, 1)
-    
-    do i=1,m
-       do j=1,m
-          if  (i == j) then
-             diagonal(i) = matrix(i, j)
-          end if
-       end do
-    end do
-
-  end function diagonal
-
   function read_matrix(path_file, dim) result(mtx)
     !> read a row-major square matrix from a file
     !> \param path_file: path to the file

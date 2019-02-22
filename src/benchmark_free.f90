@@ -51,7 +51,8 @@ end module matrix_free
   
 program main
   use numeric_kinds, only: dp
-  use davidson, only: generalized_eigensolver,  generate_diagonal_dominant, norm
+  use davidson, only: generalized_eigensolver
+  use array_utils, only: generate_diagonal_dominant, norm
   use matrix_free, only: compute_matrix_on_the_fly, compute_stx_on_the_fly
 
   implicit none

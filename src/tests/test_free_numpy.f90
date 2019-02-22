@@ -1,6 +1,7 @@
 program main
   use numeric_kinds, only: dp
-  use davidson, only: generalized_eigensolver, generate_diagonal_dominant
+  use davidson, only: generalized_eigensolver
+  use array_utils, only: generate_diagonal_dominant
   use test_utils, only: compute_matrix_on_the_fly, compute_stx_on_the_fly, write_matrix, write_vector
 
   implicit none
