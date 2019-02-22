@@ -4,15 +4,16 @@ program main
   use davidson, only: generate_diagonal_dominant, lapack_generalized_eigensolver
   
   implicit none
-  
-  real(dp), dimension(50) :: eigenvalues
-  real(dp), dimension(50, 50) :: eigenvectors
-  real(dp), dimension(50, 50) :: copy, mtx, stx
+
+  integer, parameter :: dim = 50
+  real(dp), dimension(dim) :: eigenvalues
+  real(dp), dimension(dim, dim) :: eigenvectors
+  real(dp), dimension(dim, dim) :: copy, mtx, stx
 
   ! mtx = read_matrix("tests/matrix.txt", 100)
-  mtx = generate_diagonal_dominant(50, 1d-3)
+  mtx = generate_diagonal_dominant(dim, 1d-3)
   copy = mtx
-  stx = generate_diagonal_dominant(50, 1d-3)
+  stx = generate_diagonal_dominant(dim, 1d-3)
   call write_matrix("test_lapack_matrix.txt", mtx)  
   call write_matrix("test_lapack_stx.txt", stx)  
 

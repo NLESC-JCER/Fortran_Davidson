@@ -28,6 +28,18 @@ target_compile_options(main
 
 target_link_libraries(main PRIVATE ${LINEAR_ALGEBRA} ${OpenMP_Fortran_FLAGS})
 
+# Benchmark free matrix
+add_executable(benchmark_free benchmark_free.f90 davidson.f90 numeric_kinds.f90)
+
+target_compile_options(main
+  PRIVATE
+  ${OpenMP_Fortran_FLAGS}
+   ${Fortran_FLAGS}
+   )
+
+target_link_libraries(benchmark_free PRIVATE ${LINEAR_ALGEBRA} ${OpenMP_Fortran_FLAGS}) 
+
+
 if(ENABLE_TEST)
   MESSAGE(STATUS "enable test")
   enable_testing()
