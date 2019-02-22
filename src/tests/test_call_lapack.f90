@@ -1,7 +1,7 @@
 program main
   use numeric_kinds, only: dp
+  use array_utils, only: generate_diagonal_dominant
   use test_utils, only:  write_matrix, write_vector
-  use davidson, only: generate_diagonal_dominant
   use lapack_wrapper, only: lapack_generalized_eigensolver, lapack_qr
   
   implicit none
