@@ -199,6 +199,7 @@ contains
     ! 2. Generate subspace matrix problem by projecting into V
     mtx_proj = lapack_matmul('T', 'N', V, fun_mtx_gemv(V))
     stx_proj = lapack_matmul('T', 'N', V, fun_stx_gemv(V))
+
     
     ! Outer loop block Davidson schema
     outer_loop: do i=1, max_iters
@@ -229,6 +230,8 @@ contains
           exit
        end if
        
+       
+
        ! 5. Add the correction vectors to the current basis
        if (size(V, 2) <= max_dim) then
           
@@ -243,7 +246,7 @@ contains
           
           ! 7. Orthogonalize basis
           call lapack_qr(V)
-          
+
           ! 8. Update the the projection 
           call update_projection_free(fun_mtx_gemv, V, mtx_proj)
           call update_projection_free(fun_stx_gemv, V, stx_proj)
@@ -325,10 +328,13 @@ contains
       real(dp), dimension(size(V, 1),1) :: vector
       real(dp), dimension(size(V, 1), size(V, 2)) :: correction
       integer :: ii, j
+      integer :: dim
             
+      dim = size(V,1)
+
       do j=1, size(V, 2)
          vector(:,1) = lapack_matrix_vector('N', V, eigenvectors(:,j))
-         correction = fun_mtx_gemv(vector) - eigenvalues(j) * fun_stx_gemv(vector)
+         correction(:,j) = reshape(fun_mtx_gemv(vector) - eigenvalues(j) * fun_stx_gemv(vector),(/dim/))
          do ii=1,size(correction,1)
             correction(ii, j) = correction(ii, j) / (eigenvalues(j) * diag_stx(ii)  - diag_mtx(ii))
          end do

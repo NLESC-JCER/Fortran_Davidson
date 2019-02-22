@@ -15,8 +15,16 @@ contains
     real (dp), dimension(:,:), intent(in) :: input_vect
     real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
 
+
+    ! print *, "Input Vector"
+    ! print *, input_vect
+    ! print *, "Done"
+    
     output_vect = free_matmul(compute_matrix_on_the_fly,input_vect)
 
+    ! print *, "Output Vector"
+    ! print *, output_vect
+    ! print *, "Done"
   end function apply_mtx_to_vect
 
 
@@ -50,7 +58,7 @@ contains
 
     ! set the diagonal value
     vector(i) = vector(i) + real(i)
-    
+
   end function compute_matrix_on_the_fly
 
 
