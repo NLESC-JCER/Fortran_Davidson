@@ -3,45 +3,6 @@ module test_utils
   implicit none
 
 contains
-  function diagonal(matrix)
-    !> return the diagonal of a matrix
-    real(dp), dimension(:, :), intent(in) :: matrix
-    real(dp), dimension(size(matrix, 1)) :: diagonal
-
-    ! local variables
-    integer :: i, j, m
-
-    ! dimension of the matrix
-    m = size(matrix, 1)
-    
-    do i=1,m
-       do j=1,m
-          if  (i == j) then
-             diagonal(i) = matrix(i, j)
-          end if
-       end do
-    end do
-
-  end function diagonal
-
-  function read_matrix(path_file, dim) result(mtx)
-    !> read a row-major square matrix from a file
-    !> \param path_file: path to the file
-    !> \param dim: dimension of the square matrix
-    !> \return matrix 
-
-    character(len=*), intent(in) :: path_file
-    integer, intent(in) :: dim
-    real(dp), dimension(dim, dim) :: mtx
-    integer :: i
-    
-    open(unit=3541, file=path_file, status="OLD")
-    do i=1,dim
-       read(3541, *) mtx(i, :)
-    end do
-    close(3541)
-    
-  end function read_matrix
 
   subroutine write_vector(path_file, vector)
     !> Write vector to path_file
@@ -69,27 +30,24 @@ end module test_utils
 
 program main
   use numeric_kinds, only: dp
-  use davidson, only: generalized_eigensolver, norm, generate_diagonal_dominant
+  use davidson, only: generalized_eigensolver
   use lapack_wrapper, only: lapack_generalized_eigensolver
-  use test_utils, only: diagonal , read_matrix, write_vector, cast_to_double
-  use benchmark, only: compute_benchmark
+  use array_utils, only: norm, generate_diagonal_dominant
+  use test_utils, only: write_vector, cast_to_double
 
   implicit none
 
+  integer, parameter :: dim = 50
   real(dp), dimension(3) :: eigenvalues_DPR, eigenvalues_GJD
-  real(dp), dimension(50, 3) :: eigenvectors_DPR, eigenvectors_GJD
-  real(dp), dimension(50, 50) :: mtx
-  real(dp), dimension(50, 50) :: stx
-  real(dp) :: test_norm_eigenvalues, sparsity
-  real(dp), dimension(50) :: xs
-  real(dp), dimension(5, 2) :: times
-  integer, dimension(5, 2) :: iters
-  integer, dimension(5) :: dims
+  real(dp), dimension(dim, 3) :: eigenvectors_DPR, eigenvectors_GJD
+  real(dp), dimension(dim, dim) :: mtx
+  real(dp), dimension(dim, dim) :: stx
+  real(dp) :: test_norm_eigenvalues
+  real(dp), dimension(dim) :: xs
   integer :: iter_i, j
-  character(len=20) :: arg1
 
-  mtx = generate_diagonal_dominant(50, 1d-4)
-  stx = generate_diagonal_dominant(50, 1d-4, 1d0)
+  mtx = generate_diagonal_dominant(dim, 1d-4)
+  stx = generate_diagonal_dominant(dim, 1d-4, 1d0)
 
   call generalized_eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 3, "GJD", 1000, 1d-8, iter_i, 10, stx)
   call generalized_eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 1000, 1d-8, iter_i, 10, stx)
@@ -109,22 +67,6 @@ program main
   do j=1,3
      xs = matmul(mtx, eigenvectors_GJD(:, j)) - (eigenvalues_GJD(j) * matmul( stx, eigenvectors_GJD(:, j)))
      print *, "eigenvalue ", j, ": ",eigenvalues_GJD(j), " : ",  norm(xs), " : ", norm(xs)< 1.d-7
-  end do
-  
-  ! Run benchmark
-  call get_command_argument(1, arg1)
-  if (arg1 == "benchmark") then
-     print *, "Running Benchmark! "
-     dims = [10, 50, 100, 500, 1000]
-     sparsity = 1d-3
-     call compute_benchmark(dims, 3, sparsity, times, iters)
-
-     call write_vector("times_DPR.txt", times(:, 1))
-     call write_vector("times_GJD.txt", times(:, 2))
-     
-     call write_vector("cycles_DPR.txt", cast_to_double(iters(:, 1)))
-     call write_vector("cycles_GJD.txt", cast_to_double(iters(:, 2)))
-  end if
-  
+  end do  
   
 end program main

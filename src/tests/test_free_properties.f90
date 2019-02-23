@@ -1,9 +1,10 @@
 program main
   
   use numeric_kinds, only: dp
-  use davidson, only: generalized_eigensolver, norm, generate_diagonal_dominant
-  use test_utils, only: apply_mtx_to_vect, apply_stx_to_vect, compute_matrix_on_the_fly, compute_stx_on_the_fly, diagonal, write_matrix
-  
+  use davidson, only: generalized_eigensolver
+  use test_utils, only: apply_mtx_to_vect, apply_stx_to_vect, compute_matrix_on_the_fly, compute_stx_on_the_fly, write_matrix
+  use array_utils, only: diagonal, norm, generate_diagonal_dominant
+
   implicit none
 
   integer, parameter :: dim = 50

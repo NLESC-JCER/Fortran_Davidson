@@ -1,4 +1,14 @@
 
+# Version 0.0.3
+
+## Change
+ * split the `dense` and `matrix` free into modules
+ * Moved the `lapack` calls to their own module
+ * Moved the array utilities to their own module
+ 
+## Deleted
+ * Removed the `DPR` vs `GJD` benchmark
+
 # Version 0.0.2
 
 ## Added

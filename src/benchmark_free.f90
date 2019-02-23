@@ -1,7 +1,7 @@
 module matrix_free
 
   use numeric_kinds, only: dp
-  use davidson, only: free_matmul
+  use davidson_free, only: free_matmul
   implicit none
 
   public mtx_gemv, stx_gemv, compute_stx_on_the_fly, compute_matrix_on_the_fly
@@ -79,7 +79,8 @@ end module matrix_free
   
 program main
   use numeric_kinds, only: dp
-  use davidson, only: generalized_eigensolver,  generate_diagonal_dominant, norm
+  use davidson, only: generalized_eigensolver
+  use array_utils, only: generate_diagonal_dominant, norm
   use matrix_free, only: mtx_gemv, stx_gemv, compute_matrix_on_the_fly, compute_stx_on_the_fly
 
   implicit none

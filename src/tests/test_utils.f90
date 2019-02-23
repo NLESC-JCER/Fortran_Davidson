@@ -1,11 +1,13 @@
 
 module test_utils
   use numeric_kinds, only: dp
-  use davidson, only: generate_diagonal_dominant, free_matmul
+
+  use davidson_free, only: free_matmul
+  use array_utils, only: generate_diagonal_dominant
+
   implicit none
   
 contains
-
 
   function apply_mtx_to_vect(input_vect) result (output_vect)
     !> \brief Function to compute the optional mtx on the fly
@@ -15,19 +17,9 @@ contains
     real (dp), dimension(:,:), intent(in) :: input_vect
     real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
 
-
-    ! print *, "Input Vector"
-    ! print *, input_vect
-    ! print *, "Done"
-    
     output_vect = free_matmul(compute_matrix_on_the_fly,input_vect)
 
-    ! print *, "Output Vector"
-    ! print *, output_vect
-    ! print *, "Done"
   end function apply_mtx_to_vect
-
-
 
   function apply_stx_to_vect(input_vect) result (output_vect)
     !> \brief Function to compute the optional mtx on the fly
@@ -40,9 +32,6 @@ contains
     output_vect = free_matmul(compute_stx_on_the_fly,input_vect)
 
   end function apply_stx_to_vect
-
-
-
 
 
   function compute_matrix_on_the_fly(i, dim) result (vector)
@@ -126,34 +115,6 @@ contains
     
   end function expensive_function_2
 
-
-
-
-  function diagonal(matrix)
-    !> return the diagonal of a matrix
-    real(dp), dimension(:, :), intent(in) :: matrix
-    real(dp), dimension(size(matrix, 1)) :: diagonal
-
-    ! local variables
-    integer :: i, j, m
-
-    ! dimension of the matrix
-    m = size(matrix, 1)
-    
-    do i=1,m
-       do j=1,m
-          if  (i == j) then
-             diagonal(i) = matrix(i, j)
-          end if
-       end do
-    end do
-
-  end function diagonal
-
-
-
-
-
   function read_matrix(path_file, dim) result(mtx)
     !> read a row-major square matrix from a file
     !> \param path_file: path to the file
@@ -189,8 +150,6 @@ contains
   end subroutine write_vector
 
 
-
-
   subroutine write_matrix(path_file, mtx)
     !> Write matrix to path_file
     character(len=*), intent(in) :: path_file
@@ -208,3 +167,4 @@ contains
   end subroutine write_matrix
   
 end module test_utils
+
