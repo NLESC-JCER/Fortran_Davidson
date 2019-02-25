@@ -1,7 +1,13 @@
 
+# Version 0.0.4
+
+## changed
+ *  For the Matrix-free implementation, the function that computes the target matrix on the fly,
+ was replaced by another function representing the action of a matrix-operator over a vector
+
 # Version 0.0.3
 
-## Change
+## Changed
  * split the `dense` and `matrix` free into modules
  * Moved the `lapack` calls to their own module
  * Moved the array utilities to their own module
