@@ -1,8 +1,10 @@
 program main
   use numeric_kinds, only: dp
-  use davidson, only: generalized_eigensolver
+
+  use davidson, only: generalized_eigensolver  
   use array_utils, only: generate_diagonal_dominant
-  use test_utils, only: compute_matrix_on_the_fly, compute_stx_on_the_fly, write_matrix, write_vector
+  use test_utils, only: apply_mtx_to_vect, apply_stx_to_vect, compute_matrix_on_the_fly, &
+       compute_stx_on_the_fly, write_matrix, write_vector
 
   implicit none
 
@@ -22,8 +24,8 @@ program main
   call write_matrix("matrix_free.txt", mtx)
   call write_matrix("stx_free.txt", stx)
 
-  call generalized_eigensolver(compute_matrix_on_the_fly, eigenvalues_DPR, eigenvectors_DPR, lowest, &
-       "DPR", 1000, 1d-8, iter_i, 20, compute_stx_on_the_fly)
+  call generalized_eigensolver(apply_mtx_to_vect, eigenvalues_DPR, eigenvectors_DPR, lowest, &
+       "DPR", 1000, 1d-8, iter_i, 20, apply_stx_to_vect)
 
   call write_vector("eigenvalues_DPR_free.txt",eigenvalues_DPR)
   call write_matrix("eigenvectors_DPR_free.txt", eigenvectors_DPR)
