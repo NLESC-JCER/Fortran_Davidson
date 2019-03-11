@@ -6,4 +6,4 @@ job build:
     - cd Fortran_Davidson && cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Debug -DENABLE_TEST=ON && cmake --build build
     - cd build && ctest -V
   only:
-    master
+    - master
