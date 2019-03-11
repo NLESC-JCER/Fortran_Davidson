@@ -5,5 +5,7 @@ job build:
     - cd $HOME && git clone --branch master --single-branch git://github.com/NLESC-JCER/Fortran_Davidson.git
     - cd Fortran_Davidson && cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Debug -DENABLE_TEST=ON && cmake --build build
     - cd build && ctest -V
+  tags:
+    - nlescjcer
   only:
     - master
