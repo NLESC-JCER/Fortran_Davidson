@@ -1,5 +1,4 @@
-
-.build:
+job build:
   image:
     "nlescjcer/gfortranmkl:latest"
   script:
