@@ -1,5 +1,13 @@
 !> \namespace Davidson eigensolver
 !> \author Felipe Zapata
+!> The current implementation uses a general  davidson algorithm, meaning
+!> that it compute all the eigenvalues simultaneusly using a variable size block approach.
+!> The family of Davidson algorithm only differ in the way that the correction
+!> vector is computed.
+!> Computed pairs of eigenvalues/eigenvectors are deflated using algorithm
+!> described at: https://doi.org/10.1023/A:101919970
+
+
 module davidson_dense
   !> Submodule containing the implementation of the Davidson diagonalization method
   !> for dense matrices
@@ -41,11 +49,8 @@ contains
 
     subroutine generalized_eigensolver_dense(mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
         tolerance, iters, max_dim_sub, stx)
-    !> The current implementation uses a general  davidson algorithm, meaning
-    !> that it compute all the eigenvalues simultaneusly using a block approach.
-    !> The family of Davidson algorithm only differ in the way that the correction
-    !> vector is computed.
-    
+     !> Implementation storing in memory the initial densed matrix mtx.
+      
     !> \param[in] mtx: Matrix to diagonalize
     !> \param[in, opt] Optional matrix to solve the general eigenvalue problem:
     !> \f$ mtx \lambda = V stx \lambda \f$
@@ -78,6 +83,7 @@ contains
     
     !local variables
     integer :: i, j, dim_sub, max_dim
+    integer :: n_converged ! Number of converged eigenvalue/eigenvector pairs
     
     ! Basis of subspace of approximants
     real(dp), dimension(size(mtx, 1)) :: guess, rs
@@ -90,9 +96,16 @@ contains
     ! generalize problem
     logical :: gev 
 
+    ! indices of the eigenvalues/eigenvectors pair that have not converged
+    logical, dimension(lowest) :: has_converged
+
     ! Iteration subpsace dimension
     dim_sub = lowest * 2
 
+    ! Initial number of converged eigenvalue/eigenvector pairs
+    n_converged = 0
+    has_converged = .False.
+    
     ! maximum dimension of the basis for the subspace
     if (present(max_dim_sub)) then
        max_dim  = max_dim_sub
@@ -145,9 +158,16 @@ contains
           end if
           rs = lapack_matrix_vector('N', mtx, ritz_vectors(:, j)) - guess
           errors(j) = norm(rs)
+          ! Check which eigenvalues has converged
+          if (errors(j) < tolerance) then
+             has_converged(j) = .true.
+          end if
        end do
-
-       if (all(errors < tolerance)) then
+       
+       ! Count converged pairs of eigenvalues/eigenvectors
+       n_converged = n_converged + count(errors < tolerance)
+       
+       if (all(has_converged)) then
           iters = i
           exit
        end if
@@ -198,6 +218,7 @@ contains
 
     !  8. Check convergence
     if (i > max_iters / dim_sub) then
+       iters = i
        print *, "Warning: Algorithm did not converge!!"
     end if
     
