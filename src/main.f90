@@ -37,7 +37,7 @@ program main
 
   implicit none
 
-  integer, parameter :: dim = 1000
+  integer, parameter :: dim = 100
   real(dp), dimension(3) :: eigenvalues_DPR, eigenvalues_GJD
   real(dp), dimension(dim, 3) :: eigenvectors_DPR, eigenvectors_GJD
   real(dp), dimension(dim, dim) :: mtx

@@ -2,13 +2,14 @@ module array_utils
 
   use numeric_kinds, only: dp
   use lapack_wrapper, only: lapack_generalized_eigensolver, lapack_matmul, lapack_matrix_vector, &
-       lapack_qr, lapack_solver
+       lapack_qr, lapack_solver, lapack_sort
   implicit none
 
   !> \private
   private
   !> \public
-  public :: concatenate, diagonal,eye, generate_diagonal_dominant, norm
+  public :: concatenate, diagonal,eye, generate_diagonal_dominant, norm, &
+       sort_symmetric_matrix
 
 contains
 
@@ -132,4 +133,30 @@ contains
 
   end function diagonal  
 
+  subroutine sort_symmetric_matrix(matrix)
+    !> Sort symmetric matrix base on the diagonal values
+
+    real(dp), dimension(:, :), intent(inout) :: matrix
+
+    ! local variables
+    integer :: i, j, k
+    real(dp), dimension(size(matrix, 1), size(matrix, 2)) ::  copy
+    real(dp), dimension(size(matrix, 1)) ::  d
+    integer, dimension(size(matrix, 1)) :: keys
+    
+    ! sort diagonal
+    d = diagonal(matrix)
+    keys = lapack_sort('I', d)
+
+    ! reorder matrix
+    copy = matrix
+    do i=1, size(keys)
+       k = keys(i)
+       do j=1,size(keys)
+       matrix(i, j) = copy(k, keys(j))
+    end do
+ end do
+    
+  end subroutine sort_symmetric_matrix
+  
 end module array_utils

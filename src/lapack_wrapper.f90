@@ -7,7 +7,7 @@ module lapack_wrapper
   private
   !> \public
   public :: lapack_generalized_eigensolver, lapack_matmul, lapack_matrix_vector, &
-       lapack_qr, lapack_solver
+       lapack_qr, lapack_solver, lapack_sort
 
 contains
 
@@ -280,6 +280,36 @@ contains
 
   end function lapack_matrix_vector
 
+
+  function lapack_sort(id, vector) result(keys)
+    !> \brief sort a vector of douboles
+    !> \param vector Array to sort
+    !> \param keys Indices of the sorted array
+    !> \param id Sorted either `I` increasing or `D` decreasing
+    real(dp), dimension(:), intent(inout) :: vector
+    character(len=1), intent(in) :: id
+    integer, dimension(size(vector)) :: keys
+
+    ! local variables
+    real(dp), dimension(size(vector)) :: xs
+    integer :: i, j, info
+    xs = vector
+    
+    call DLASRT(id, size(vector), vector, info)
+
+    do i=1,size(vector)
+       do j=1, size(vector)
+          if (abs(vector(j) - xs(i)) < 1e-16) then
+             keys(i) = j
+          end if
+       end do
+    end do
+    
+    call check_lapack_call(info, "DLASRT")
+    
+  end function lapack_sort
+  
+  
   subroutine check_lapack_call(info, name)
     !> Check if a subroutine finishes sucessfully
     !> \param info: Termination signal
