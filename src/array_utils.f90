@@ -139,24 +139,27 @@ contains
     real(dp), dimension(:, :), intent(inout) :: matrix
 
     ! local variables
-    integer :: i, j, k
+    integer :: i
     real(dp), dimension(size(matrix, 1), size(matrix, 2)) ::  copy
     real(dp), dimension(size(matrix, 1)) ::  d
     integer, dimension(size(matrix, 1)) :: keys
-    
+
     ! sort diagonal
     d = diagonal(matrix)
     keys = lapack_sort('I', d)
 
     ! reorder matrix
     copy = matrix
-    do i=1, size(keys)
-       k = keys(i)
-       do j=1,size(keys)
-       matrix(i, j) = copy(k, keys(j))
+
+    do i=1,size(d)
+       matrix(i, :) = copy(keys(i), :)
     end do
- end do
-    
+
+    copy = matrix
+    do i=1,size(d)
+       matrix(:, i) = copy(:, keys(i))
+    end do
+
   end subroutine sort_symmetric_matrix
-  
+
 end module array_utils
