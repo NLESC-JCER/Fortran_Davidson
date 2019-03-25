@@ -217,7 +217,7 @@ contains
     end do outer_loop
 
     !  8. Check convergence
-    if (i > max_iters / dim_sub) then
+    if (i > max_iters) then
        iters = i
        print *, "Warning: Algorithm did not converge!!"
     end if
@@ -803,9 +803,11 @@ contains
        do ii=1,size(correction,1)
         if (gev) then
           correction(ii, j) = correction(ii, j) / (eigenvalues(j) * stx(ii,ii) - mtx(ii, ii))
-        else 
-          correction(ii, j) = correction(ii, j) / (eigenvalues(j)  - mtx(ii, ii))
-        end if
+        else
+           if (.not. abs(eigenvalues(j)  - mtx(ii, ii)) < 1e-16) then
+              correction(ii, j) = correction(ii, j) / (eigenvalues(j)  - mtx(ii, ii))
+           end if
+        endif
        end do
     end do
 

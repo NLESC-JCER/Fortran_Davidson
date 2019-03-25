@@ -9,17 +9,18 @@ program main
   implicit none
  
   integer, parameter :: dim = 864
-  real(dp), dimension(3) :: eigenvalues_DPR
-  real(dp), dimension(dim, 3) :: eigenvectors_DPR
+  integer, parameter :: lowest = 6
+  real(dp), dimension(lowest) :: eigenvalues_DPR
+  real(dp), dimension(dim, lowest) :: eigenvectors_DPR
   real(dp), dimension(dim, dim) :: mtx
   integer :: iter_i
-  
-  mtx = read_matrix("/home/felipe/Primer/Fortran_Davidson/src/tests/data/sorted_bse.txt", dim)
+
+  ! mtx = read_matrix("/home/felipe/Primer/Fortran_Davidson/src/tests/data/bse_singlet.dat", dim)
+  mtx = read_matrix("/home/felipe/Primer/Fortran_Davidson/src/tests/data/sorted_bse.dat", dim)
 
   ! call sort_symmetric_matrix(mtx)
 
-  print *, sum((mtx - transpose(mtx)) ** 2)
-  call generalized_eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 100, 1d-5, iter_i, 20)
+  call generalized_eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, lowest, "DPR", 15, 1d-4, iter_i, lowest*3)
 
   print *, eigenvalues_DPR
   
