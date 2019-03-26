@@ -17,7 +17,8 @@ foreach(PROG ${SOURCE_DAVIDSON})
 endforeach(PROG)
 # set(NUMPY_TEST_SRC ${CMAKE_SOURCE_DIR}/src/davidson.f90 ${CMAKE_SOURCE_DIR}/src/lapack_wrapper.f90 ${CMAKE_SOURCE_DIR}/src/numeric_kinds.f90)
 
-set(test_cases test_call_lapack test_dense_numpy test_free_numpy test_dense_properties test_free_properties)
+set(test_cases test_call_lapack test_dense_numpy test_free_numpy test_dense_properties
+  test_free_properties test_reorder)
 
 foreach(PROG ${test_cases})
   add_executable(${PROG}
@@ -48,6 +49,12 @@ add_test(
   NAME test_free_properties
   COMMAND $<TARGET_FILE:test_free_properties>
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/bin
+  )
+
+add_test(
+  NAME test_reorder
+  COMMAND $<TARGET_FILE:test_reorder>
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/bin  
   )
 
 # Tests requiring python, numpy and scipy

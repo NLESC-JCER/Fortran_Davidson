@@ -2,13 +2,14 @@ module array_utils
 
   use numeric_kinds, only: dp
   use lapack_wrapper, only: lapack_generalized_eigensolver, lapack_matmul, lapack_matrix_vector, &
-       lapack_qr, lapack_solver
+       lapack_qr, lapack_solver, lapack_sort
   implicit none
 
   !> \private
   private
   !> \public
-  public :: concatenate, diagonal,eye, generate_diagonal_dominant, norm
+  public :: concatenate, diagonal,eye, generate_diagonal_dominant, norm, &
+       generate_preconditioner
 
 contains
 
@@ -33,7 +34,7 @@ contains
     do i=1, m
        do j=1, n
           if (i /= j) then
-             eye(i, j) = 0
+             eye(i, j) = 0.d0
           else
              eye(i, i) = x
           end if
@@ -132,4 +133,49 @@ contains
 
   end function diagonal  
 
+  function generate_preconditioner(diag, dim_sub) result(precond)
+    !> \brief generates a diagonal preconditioner for `matrix`.
+    !> \return diagonal matrix
+
+    ! input variable
+    real(dp), dimension(:), intent(inout) :: diag
+    integer, intent(in) :: dim_sub
+
+    ! local variables
+    real(dp), dimension(size(diag), dim_sub) :: precond
+    integer, dimension(size(diag)) :: keys
+    integer :: i, k
+    
+    ! sort diagonal
+    keys = lapack_sort('I', diag)
+    ! Fill matrix with zeros
+    precond = 0.0_dp
+
+    ! Add one depending on the order of the matrix diagonal
+    do i=1, dim_sub
+       k = search_key(keys, i)
+       precond(k, i) = 1.d0
+    end do
+    
+  end function generate_preconditioner
+
+  function search_key(keys, i) result(k)
+    !> \brief Search for a given index `i` in a vector `keys`
+    !> \param keys Vector of index
+    !> \param i Index to search for
+    !> \return index of i inside keys
+
+    integer, dimension(:), intent(in) :: keys
+    integer, intent(in) :: i
+    integer :: j, k
+    
+    do j=1,size(keys)
+       if (keys(j) == i) then
+          k = j
+          exit
+       end if
+    end do
+
+  end function search_key
+    
 end module array_utils

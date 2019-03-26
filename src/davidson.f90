@@ -1,12 +1,20 @@
 !> \namespace Davidson eigensolver
 !> \author Felipe Zapata
+!> The current implementation uses a general  davidson algorithm, meaning
+!> that it compute all the eigenvalues simultaneusly using a variable size block approach.
+!> The family of Davidson algorithm only differ in the way that the correction
+!> vector is computed.
+!> Computed pairs of eigenvalues/eigenvectors are deflated using algorithm
+!> described at: https://doi.org/10.1023/A:101919970
+
+
 module davidson_dense
   !> Submodule containing the implementation of the Davidson diagonalization method
   !> for dense matrices
   use numeric_kinds, only: dp
   use lapack_wrapper, only: lapack_generalized_eigensolver, lapack_matmul, lapack_matrix_vector, &
-       lapack_qr, lapack_solver
-  use array_utils, only: concatenate, eye, norm
+       lapack_qr, lapack_solver, lapack_sort
+  use array_utils, only: concatenate, diagonal, eye, generate_preconditioner, norm
 
   implicit none
   
@@ -41,11 +49,8 @@ contains
 
     subroutine generalized_eigensolver_dense(mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
         tolerance, iters, max_dim_sub, stx)
-    !> The current implementation uses a general  davidson algorithm, meaning
-    !> that it compute all the eigenvalues simultaneusly using a block approach.
-    !> The family of Davidson algorithm only differ in the way that the correction
-    !> vector is computed.
-    
+     !> Implementation storing in memory the initial densed matrix mtx.
+      
     !> \param[in] mtx: Matrix to diagonalize
     !> \param[in, opt] Optional matrix to solve the general eigenvalue problem:
     !> \f$ mtx \lambda = V stx \lambda \f$
@@ -78,6 +83,7 @@ contains
     
     !local variables
     integer :: i, j, dim_sub, max_dim
+    integer :: n_converged ! Number of converged eigenvalue/eigenvector pairs
     
     ! Basis of subspace of approximants
     real(dp), dimension(size(mtx, 1)) :: guess, rs
@@ -87,12 +93,22 @@ contains
     real(dp), dimension(:), allocatable :: eigenvalues_sub
     real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V
 
+    ! Diagonal matrix
+    real(dp), dimension(size(mtx, 1)) :: d
+    
     ! generalize problem
     logical :: gev 
+
+    ! indices of the eigenvalues/eigenvectors pair that have not converged
+    logical, dimension(lowest) :: has_converged
 
     ! Iteration subpsace dimension
     dim_sub = lowest * 2
 
+    ! Initial number of converged eigenvalue/eigenvector pairs
+    n_converged = 0
+    has_converged = .False.
+    
     ! maximum dimension of the basis for the subspace
     if (present(max_dim_sub)) then
        max_dim  = max_dim_sub
@@ -104,8 +120,10 @@ contains
     gev = present(stx)
 
     ! 1. Variables initialization
-    V = eye(size(ritz_vectors, 1), dim_sub) ! Initial orthonormal basis
-
+    ! Select the initial ortogonal subspace based on lowest elements
+    ! of the diagonal of the matrix
+    d = diagonal(mtx)
+    V = generate_preconditioner(d, dim_sub)
 
    ! 2. Generate subpace matrix problem by projecting into V
    mtx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
@@ -145,9 +163,16 @@ contains
           end if
           rs = lapack_matrix_vector('N', mtx, ritz_vectors(:, j)) - guess
           errors(j) = norm(rs)
+          ! Check which eigenvalues has converged
+          if (errors(j) < tolerance) then
+             has_converged(j) = .true.
+          end if
        end do
-
-       if (all(errors < tolerance)) then
+       
+       ! Count converged pairs of eigenvalues/eigenvectors
+       n_converged = n_converged + count(errors < tolerance)
+       
+       if (all(has_converged)) then
           iters = i
           exit
        end if
@@ -197,7 +222,8 @@ contains
     end do outer_loop
 
     !  8. Check convergence
-    if (i > max_iters / dim_sub) then
+    if (i > max_iters) then
+       iters = i
        print *, "Warning: Algorithm did not converge!!"
     end if
     
@@ -265,7 +291,7 @@ module davidson_free
   use numeric_kinds, only: dp
   use lapack_wrapper, only: lapack_generalized_eigensolver, lapack_matmul, lapack_matrix_vector, &
        lapack_qr, lapack_solver
-  use array_utils, only: concatenate, eye, norm
+  use array_utils, only: concatenate, generate_preconditioner, norm
   use davidson_dense, only: generalized_eigensolver_dense
   implicit none
 
@@ -343,7 +369,7 @@ contains
     
     ! ! Basis of subspace of approximants
     real(dp), dimension(size(ritz_vectors, 1),1) :: guess, rs
-    real(dp), dimension(size(ritz_vectors, 1)  ) :: diag_mtx, diag_stx
+    real(dp), dimension(size(ritz_vectors, 1)  ) :: diag_mtx, diag_stx, copy_d
     real(dp), dimension(lowest):: errors
     
     ! ! Working arrays
@@ -368,7 +394,10 @@ contains
     diag_stx = extract_diagonal_free(fun_stx_gemv,dim_mtx)
     
     ! 1. Variables initialization
-    V = eye(dim_mtx, dim_sub) ! Initial orthonormal basis
+    ! Select the initial ortogonal subspace based on lowest elements
+    ! of the diagonal of the matrix
+    copy_d = diag_mtx
+    V = generate_preconditioner(copy_d, dim_sub) ! Initial orthonormal basis
     
     ! 2. Generate subspace matrix problem by projecting into V
     mtx_proj = lapack_matmul('T', 'N', V, fun_mtx_gemv(V))
@@ -757,7 +786,7 @@ contains
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
     real(dp), dimension(:, :), intent(in), optional ::  stx 
     real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
-
+    
     ! local variables
     integer :: ii,j, m
     real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: diag, arr
@@ -780,12 +809,12 @@ contains
        correction(:, j) = lapack_matrix_vector('N', arr, vec) 
 
        do ii=1,size(correction,1)
-        if (gev) then
-          correction(ii, j) = correction(ii, j) / (eigenvalues(j) * stx(ii,ii) - mtx(ii, ii))
-        else 
-          correction(ii, j) = correction(ii, j) / (eigenvalues(j)  - mtx(ii, ii))
-        end if
-       end do
+          if (gev) then
+             correction(ii, j) = correction(ii, j) / (eigenvalues(j) * stx(ii,ii) - mtx(ii, ii))
+           else
+              correction(ii, j) = correction(ii, j) / (eigenvalues(j)  - mtx(ii, ii))
+           endif
+        end do
     end do
 
   end function compute_DPR_generalized_dense

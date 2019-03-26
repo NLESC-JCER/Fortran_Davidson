@@ -1,4 +1,10 @@
 
+# Version 0.0.5
+
+### New
+
+ * Select the initial orthonormal basis set based on the lowest diagonal elements of the matrix
+
 # Version 0.0.4
 
 ## changed
