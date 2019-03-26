@@ -23,21 +23,21 @@ program main
   call generalized_eigensolver(apply_mtx_to_vect, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 1000, &
        1d-8, iter_i, 20, apply_stx_to_vect)
 
-  print *, "eigenvalues: ", eigenvalues_DPR
+  print "(a, 3f8.4)", "eigenvalues: ", eigenvalues_DPR
   print *, "Test 1"
   print *, "Check that eigenvalue equation:  H V = l B V holds"
   print *, "DPR method:"
   do j=1,3
      xs = matmul(mtx, eigenvectors_DPR(:, j)) - (eigenvalues_DPR(j) * matmul(stx, eigenvectors_DPR(:, j)))
-     print *, "error: ", norm(xs)
-     print *, "eigenvalue ", j, ": ", eigenvalues_DPR(j), " succeeded: ", norm(xs) < 1d-8
+     print "(a, e10.3)", "error: ", norm(xs)
+     print "(a, i2, a, e12.5, a, l)", "eigenvalue ", j, ": ", eigenvalues_DPR(j), " succeeded: ", norm(xs) < 1d-8
   end do
   
   print *, "Test 2"
   print *, "If V are the eigenvector then V * V^T = I"
   zs = diagonal(matmul(eigenvectors_DPR, transpose(eigenvectors_DPR)))
   ! There are only 3 eigenvectors
-  print *, "DPR method: ", norm(zs(:3)) < sqrt(3.d0)
+  print "(a, l)", "DPR method: ", norm(zs(:3)) < sqrt(3.d0)
 
 
 end program main

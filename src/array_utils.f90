@@ -9,7 +9,7 @@ module array_utils
   private
   !> \public
   public :: concatenate, diagonal,eye, generate_diagonal_dominant, norm, &
-       sort_symmetric_matrix
+       generate_preconditioner
 
 contains
 
@@ -34,7 +34,7 @@ contains
     do i=1, m
        do j=1, n
           if (i /= j) then
-             eye(i, j) = 0
+             eye(i, j) = 0.d0
           else
              eye(i, i) = x
           end if
@@ -133,33 +133,32 @@ contains
 
   end function diagonal  
 
-  subroutine sort_symmetric_matrix(matrix)
-    !> Sort symmetric matrix base on the diagonal values
+  function generate_preconditioner(matrix, dim_sub) result(precond)
+    !> \brief generates a diagonal preconditioner for `matrix`.
+    !> \return diagonal matrix
 
-    real(dp), dimension(:, :), intent(inout) :: matrix
+    ! input variable
+    real(dp), dimension(:, :), intent(in) :: matrix
+    integer :: dim_sub
 
     ! local variables
-    integer :: i
-    real(dp), dimension(size(matrix, 1), size(matrix, 2)) ::  copy
-    real(dp), dimension(size(matrix, 1)) ::  d
+    real(dp), dimension(size(matrix, 1), dim_sub) :: precond
+    real(dp), dimension(size(matrix, 1)) :: d
     integer, dimension(size(matrix, 1)) :: keys
-
+    integer :: i
+    
     ! sort diagonal
     d = diagonal(matrix)
     keys = lapack_sort('I', d)
 
-    ! reorder matrix
-    copy = matrix
+    ! Fill matrix with zeros
+    precond = 0.d0
 
-    do i=1,size(d)
-       matrix(i, :) = copy(keys(i), :)
+    ! Add one depending on the order of the matrix diagonal
+    do i=1, dim_sub
+       precond(keys(i), i) = 1.d0
     end do
-
-    copy = matrix
-    do i=1,size(d)
-       matrix(:, i) = copy(:, keys(i))
-    end do
-
-  end subroutine sort_symmetric_matrix
-
+    
+  end function generate_preconditioner
+  
 end module array_utils
