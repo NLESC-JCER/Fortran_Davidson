@@ -92,6 +92,9 @@ contains
     ! Working arrays
     real(dp), dimension(:), allocatable :: eigenvalues_sub
     real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V
+
+    ! Diagonal matrix
+    real(dp), dimension(size(mtx, 1)) :: d
     
     ! generalize problem
     logical :: gev 
@@ -117,8 +120,10 @@ contains
     gev = present(stx)
 
     ! 1. Variables initialization
-    ! V = eye(size(ritz_vectors, 1), dim_sub) ! Initial orthonormal basis
-    V = generate_preconditioner(mtx, dim_sub)
+    ! Select the initial ortogonal subspace based on lowest elements
+    ! of the diagonal of the matrix
+    d = diagonal(mtx)
+    V = generate_preconditioner(d, dim_sub)
 
    ! 2. Generate subpace matrix problem by projecting into V
    mtx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
@@ -286,7 +291,7 @@ module davidson_free
   use numeric_kinds, only: dp
   use lapack_wrapper, only: lapack_generalized_eigensolver, lapack_matmul, lapack_matrix_vector, &
        lapack_qr, lapack_solver
-  use array_utils, only: concatenate, eye, norm
+  use array_utils, only: concatenate, generate_preconditioner, norm
   use davidson_dense, only: generalized_eigensolver_dense
   implicit none
 
@@ -364,7 +369,7 @@ contains
     
     ! ! Basis of subspace of approximants
     real(dp), dimension(size(ritz_vectors, 1),1) :: guess, rs
-    real(dp), dimension(size(ritz_vectors, 1)  ) :: diag_mtx, diag_stx
+    real(dp), dimension(size(ritz_vectors, 1)  ) :: diag_mtx, diag_stx, copy_d
     real(dp), dimension(lowest):: errors
     
     ! ! Working arrays
@@ -389,7 +394,10 @@ contains
     diag_stx = extract_diagonal_free(fun_stx_gemv,dim_mtx)
     
     ! 1. Variables initialization
-    V = eye(dim_mtx, dim_sub) ! Initial orthonormal basis
+    ! Select the initial ortogonal subspace based on lowest elements
+    ! of the diagonal of the matrix
+    copy_d = diag_mtx
+    V = generate_preconditioner(copy_d, dim_sub) ! Initial orthonormal basis
     
     ! 2. Generate subspace matrix problem by projecting into V
     mtx_proj = lapack_matmul('T', 'N', V, fun_mtx_gemv(V))

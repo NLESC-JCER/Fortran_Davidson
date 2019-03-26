@@ -133,23 +133,21 @@ contains
 
   end function diagonal  
 
-  function generate_preconditioner(matrix, dim_sub) result(precond)
+  function generate_preconditioner(diag, dim_sub) result(precond)
     !> \brief generates a diagonal preconditioner for `matrix`.
     !> \return diagonal matrix
 
     ! input variable
-    real(dp), dimension(:, :), intent(in) :: matrix
+    real(dp), dimension(:), intent(inout) :: diag
     integer, intent(in) :: dim_sub
 
     ! local variables
-    real(dp), dimension(size(matrix, 1), dim_sub) :: precond
-    real(dp), dimension(size(matrix, 1)) :: d
-    integer, dimension(size(matrix, 1)) :: keys
+    real(dp), dimension(size(diag), dim_sub) :: precond
+    integer, dimension(size(diag)) :: keys
     integer :: i, k
     
     ! sort diagonal
-    d = diagonal(matrix)
-    keys = lapack_sort('I', d)
+    keys = lapack_sort('I', diag)
     ! Fill matrix with zeros
     precond = 0.0_dp
 
