@@ -24,7 +24,7 @@ module davidson_dense
   public :: generalized_eigensolver_dense
 
   interface
-     module function compute_correction_generalized_dense(mtx, V, eigenvalues, eigenvectors, method, keys, stx) &
+     module function compute_correction_generalized_dense(mtx, V, eigenvalues, eigenvectors, method, stx) &
           result(correction)
        !> compute the correction vector using a given `method` for the Davidson algorithm
        !> See correction_methods submodule for the implementations
@@ -34,14 +34,12 @@ module davidson_dense
        !> \param[in] eigenvalues: of the reduce problem
        !> \param[in] eigenvectors: of the reduce problem
        !> \param[in] method: name of the method to compute the correction
-       !> \param[in] keys: Indices of the Lowest diagonal values
        
        real(dp), dimension(:), intent(in) :: eigenvalues
        real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
        real(dp), dimension(:, :), intent(in), optional :: stx
        character(len=*), optional, intent(in) :: method
        real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
-       integer, dimension(:), intent(in) :: keys
        
      end function compute_correction_generalized_dense
 
@@ -88,15 +86,12 @@ contains
     integer :: n_converged ! Number of converged eigenvalue/eigenvector pairs
     
     ! Basis of subspace of approximants
-    real(dp), dimension(size(mtx, 1)) :: guess, rs, ds
+    real(dp), dimension(size(mtx, 1)) :: guess, rs
     real(dp), dimension(lowest):: errors
 
     ! Working arrays
     real(dp), dimension(:), allocatable :: eigenvalues_sub
     real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V
-
-    ! Order of the lowest elements of the diagonal
-    integer, dimension(size(mtx, 1)) :: keys
     
     ! generalize problem
     logical :: gev 
@@ -122,10 +117,8 @@ contains
     gev = present(stx)
 
     ! 1. Variables initialization
-    V = eye(size(ritz_vectors, 1), dim_sub) ! Initial orthonormal basis
-    ! V = generate_preconditioner(mtx, dim_sub)
-    ds = diagonal(mtx)
-    keys = lapack_sort('I', ds)
+    ! V = eye(size(ritz_vectors, 1), dim_sub) ! Initial orthonormal basis
+    V = generate_preconditioner(mtx, dim_sub)
 
    ! 2. Generate subpace matrix problem by projecting into V
    mtx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
@@ -187,9 +180,9 @@ contains
           allocate(correction(size(mtx, 1), size(V, 2)))
 
           if(gev) then
-            correction = compute_correction_generalized_dense(mtx, V, eigenvalues_sub, eigenvectors_sub, method, keys, stx)
+            correction = compute_correction_generalized_dense(mtx, V, eigenvalues_sub, eigenvectors_sub, method, stx)
           else
-            correction = compute_correction_generalized_dense(mtx, V, eigenvalues_sub, eigenvectors_sub, method, keys)
+            correction = compute_correction_generalized_dense(mtx, V, eigenvalues_sub, eigenvectors_sub, method)
           end if
 
 
@@ -744,14 +737,13 @@ submodule (davidson_dense) correction_methods_generalized_dense
   
 contains
 
-  module function compute_correction_generalized_dense(mtx, V, eigenvalues, eigenvectors, method, keys, stx) &
+  module function compute_correction_generalized_dense(mtx, V, eigenvalues, eigenvectors, method, stx) &
        result(correction)
     !> see interface in davidson module
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
     real(dp), dimension(:, :), intent(in), optional :: stx
     character(len=*), optional,intent(in) :: method
-    integer, dimension(:), intent(in) :: keys
     logical :: gev 
 
     ! local variables
@@ -766,9 +758,9 @@ contains
     select case (method)
     case ("DPR")
       if(gev) then
-       correction = compute_DPR_generalized_dense(mtx, V, eigenvalues, eigenvectors, keys, stx)
+       correction = compute_DPR_generalized_dense(mtx, V, eigenvalues, eigenvectors, stx)
       else
-        correction = compute_DPR_generalized_dense(mtx, V, eigenvalues, eigenvectors, keys)
+        correction = compute_DPR_generalized_dense(mtx, V, eigenvalues, eigenvectors)
       end if
     case ("GJD")
       if(gev) then
@@ -780,16 +772,15 @@ contains
     
   end function compute_correction_generalized_dense
 
-  function compute_DPR_generalized_dense(mtx, V, eigenvalues, eigenvectors, keys, stx) result(correction)
+  function compute_DPR_generalized_dense(mtx, V, eigenvalues, eigenvectors, stx) result(correction)
     !> compute Diagonal-Preconditioned-Residue (DPR) correction
     real(dp), dimension(:), intent(in) :: eigenvalues
     real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
     real(dp), dimension(:, :), intent(in), optional ::  stx 
     real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
-    integer, dimension(:), intent(in) :: keys
     
     ! local variables
-    integer :: ii,j, k, m
+    integer :: ii,j, m
     real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: diag, arr
     real(dp), dimension(size(mtx, 1)) :: vec
     logical :: gev
@@ -810,12 +801,9 @@ contains
        correction(:, j) = lapack_matrix_vector('N', arr, vec) 
 
        do ii=1,size(correction,1)
-          k = keys(ii)
           if (gev) then
              correction(ii, j) = correction(ii, j) / (eigenvalues(j) * stx(ii,ii) - mtx(ii, ii))
-             ! correction(k, j) = correction(k, j) / (eigenvalues(j) * stx(k, k) - mtx(k, k))             
            else
-              ! correction(k, j) = correction(k, j) / (eigenvalues(j)  - mtx(k, k))
               correction(ii, j) = correction(ii, j) / (eigenvalues(j)  - mtx(ii, ii))
            endif
         end do

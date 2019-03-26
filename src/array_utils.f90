@@ -139,26 +139,45 @@ contains
 
     ! input variable
     real(dp), dimension(:, :), intent(in) :: matrix
-    integer :: dim_sub
+    integer, intent(in) :: dim_sub
 
     ! local variables
     real(dp), dimension(size(matrix, 1), dim_sub) :: precond
     real(dp), dimension(size(matrix, 1)) :: d
     integer, dimension(size(matrix, 1)) :: keys
-    integer :: i
+    integer :: i, k
     
     ! sort diagonal
     d = diagonal(matrix)
     keys = lapack_sort('I', d)
-
     ! Fill matrix with zeros
-    precond = 0.d0
+    precond = 0.0_dp
 
     ! Add one depending on the order of the matrix diagonal
     do i=1, dim_sub
-       precond(keys(i), i) = 1.d0
+       k = search_key(keys, i)
+       precond(k, i) = 1.d0
     end do
     
   end function generate_preconditioner
-  
+
+  function search_key(keys, i) result(k)
+    !> \brief Search for a given index `i` in a vector `keys`
+    !> \param keys Vector of index
+    !> \param i Index to search for
+    !> \return index of i inside keys
+
+    integer, dimension(:), intent(in) :: keys
+    integer, intent(in) :: i
+    integer :: j, k
+    
+    do j=1,size(keys)
+       if (keys(j) == i) then
+          k = j
+          exit
+       end if
+    end do
+
+  end function search_key
+    
 end module array_utils

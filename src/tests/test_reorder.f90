@@ -15,23 +15,22 @@ program main
   integer :: iter_i
 
   mtx = read_matrix("../src/tests/data/bse_singlet.dat", dim)
-  ! mtx = read_matrix("src/tests/data/bse_singlet.dat", dim)
 
-  ! print *, "DPR Method"
-  ! call generalized_eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, lowest, "DPR", 50, 1d-4, iter_i, lowest*3)
+  print *, "DPR Method"
+  call generalized_eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, lowest, "DPR", 50, 1d-4, iter_i, lowest*3)
 
-  ! expected = [0.30445426, 0.31341032, 0.31360998, 0.33246853, 0.34212415, 0.35761287]
+  expected = [0.30445426, 0.31341032, 0.31360998, 0.33246853, 0.34212415, 0.35761287]
 
-  ! print "(a, i2)", "steps to convergence: ", iter_i
-  ! print "(a, 6f8.4)", "Eigenvalues:", eigenvalues_DPR
-  ! print "(a, e10.3)", "Relative error with expected eigenvalues: ", norm(eigenvalues_DPR - expected)
+  print "(a, i2)", "steps to convergence: ", iter_i
+  print "(a, 6f8.4)", "Eigenvalues:", eigenvalues_DPR
+  print "(a, e10.3)", "Relative error with expected eigenvalues: ", norm(eigenvalues_DPR - expected)
 
-  ! print *, "GJD Method"
+  print *, "GJD Method"
 
-  ! call generalized_eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, lowest, "GJD", 10, 1d-4, iter_i, lowest*3)
+  call generalized_eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, lowest, "GJD", 10, 1d-4, iter_i, lowest*2)
 
-  ! print "(a, i2)", "steps to convergence: ", iter_i
-  ! print "(a, 6f8.4)", "Eigenvalues:", eigenvalues_GJD
-  ! print "(a, e10.3)", "Relative error with expected eigenvalues: ", norm(eigenvalues_GJD - expected)
+  print "(a, i2)", "steps to convergence: ", iter_i
+  print "(a, 6f8.4)", "Eigenvalues:", eigenvalues_GJD
+  print "(a, e10.3)", "Relative error with expected eigenvalues: ", norm(eigenvalues_GJD - expected)
   
 end program main

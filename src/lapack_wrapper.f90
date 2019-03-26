@@ -296,7 +296,8 @@ contains
     xs = vector
     
     call DLASRT(id, size(vector), vector, info)
-
+    call check_lapack_call(info, "DLASRT")
+    
     do i=1,size(vector)
        do j=1, size(vector)
           if (abs(vector(j) - xs(i)) < 1e-16) then
@@ -304,8 +305,6 @@ contains
           end if
        end do
     end do
-    
-    call check_lapack_call(info, "DLASRT")
     
   end function lapack_sort
   
