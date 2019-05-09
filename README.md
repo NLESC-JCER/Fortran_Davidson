@@ -64,7 +64,7 @@ and random number of the order `1e-4` on the off-diagonal entries.
  * `stx`(*in*, optional) Optional matrix to compute the generalized eigenvalue problem
  
 ### References:
- * [Davidson diagonalization method and its applications to electronic structure calculations](https://pdfs.semanticscholar.org/57811/eaf768d1a006f505dfe24f329874a679ba59.pdf?_ga=2.219777566.664950272.1547548596-1327556406.1547548596)
+ * [Davidson diagonalization method and its applications to electronic structure calculations](https://www.semanticscholar.org/paper/DAVIDSON-DIAGONALIZATION-METHOD-AND-ITS-APPLICATION-Liao/5811eaf768d1a006f505dfe24f329874a679ba59)
  * [Numerical Methods for Large Eigenvalue Problem](https://doi.org/10.1137/1.9781611970739)
 
 Installation and Testing
