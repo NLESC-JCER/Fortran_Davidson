@@ -196,28 +196,20 @@ contains
        
           ! 7. Orthogonalize basis
           call lapack_qr(V)
-          
-
-          ! 8. Update the the projection 
-          call update_projection_dense(mtx, V, mtx_proj)
-          if (gev) then
-             call update_projection_dense(stx, V, stx_proj)
-           end if
 
        else
 
           ! 6. Otherwise reduce the basis of the subspace to the current correction
           V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :dim_sub))
 
-          ! we refresh the projected matrices
-          mtx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
-
-          if(gev) then
-           stx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', stx, V))
-          end if
-
        end if
 
+       ! we refresh the projected matrices
+       mtx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
+
+       if(gev) then
+          stx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', stx, V))
+       end if
       
     end do outer_loop
 
