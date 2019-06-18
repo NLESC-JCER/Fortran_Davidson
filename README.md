@@ -29,14 +29,14 @@ program main
 
   integer, parameter :: dim = 50
   integer, parameter :: lowest = 3
-  real(dp), dimension(dim, dim) :: mtx
+  real(dp), dimension(dim, dim) :: mtx, stx
   real(dp), dimension(lowest) :: eigenvalues
   real(dp), dimension(dim, lowest) :: eigenvectors
   real(dp) :: tolerance
   integer:: max_dim_subspace, max_iterations, lowest
 
   mtx = generate_diagonal_dominant(dim, 1d-4)
-  stx = generate_diagonal_dominant(dim, 1d-4, 1)
+  stx = generate_diagonal_dominant(dim, 1d-4, 1.0_dp)
   max_iterations = 1000
   max_dim_subspace = 20
   tolerance = 1d-8
