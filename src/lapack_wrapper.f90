@@ -90,7 +90,7 @@ contains
 
   end subroutine lapack_generalized_eigensolver
 
-    subroutine lapack_generalized_eigensolver_lowest(mtx, stx, eigenvalues, eigenvectors, lowest)
+  subroutine lapack_generalized_eigensolver_lowest(mtx, stx, eigenvalues, eigenvectors, lowest)
     !> Call the DSYGVX subroutine lapack to compute the lowest eigenvalues
     !> and corresponding eigenvectors of mtx
     !> \param mtx: Matrix to diaogonalize
@@ -102,11 +102,11 @@ contains
 
     ! input/output
     implicit none
+    integer :: lowest
     real(dp), dimension(:, :), intent(in) :: mtx
     real(dp), dimension(:, :), intent(in) :: stx
     real(dp), dimension(lowest), intent(out) :: eigenvalues
     real(dp), dimension(size(mtx, 1), lowest), intent(out) :: eigenvectors
-    integer :: lowest
 
     ! Local variables
     real(dp), dimension(:, :), allocatable :: mtx_copy
