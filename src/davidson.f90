@@ -360,13 +360,12 @@ contains
     copy_d = diag_mtx
     V = generate_preconditioner(copy_d, dim_sub) ! Initial orthonormal basis
     
-    ! 2. Generate subspace matrix problem by projecting into V
-    mtx_proj = lapack_matmul('T', 'N', V, fun_mtx_gemv(V))
-    stx_proj = lapack_matmul('T', 'N', V, fun_stx_gemv(V))
-
-    
     ! Outer loop block Davidson schema
     outer_loop: do i=1, max_iters
+
+       ! 2. Generate subspace matrix problem by projecting into V
+       mtx_proj = lapack_matmul('T', 'N', V, fun_mtx_gemv(V))
+       stx_proj = lapack_matmul('T', 'N', V, fun_stx_gemv(V))
 
        ! 3. compute the eigenvalues and their corresponding ritz_vectors
        ! for the projected matrix using lapack
@@ -383,6 +382,7 @@ contains
        
        ! 4. Check for convergence
        ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
+
        do j=1,lowest
           guess = eigenvalues_sub(j) * fun_stx_gemv(reshape(ritz_vectors(:, j),(/dim_mtx,1/) ) )
           rs = fun_mtx_gemv(reshape(ritz_vectors(:, j), (/dim_mtx,1/))) - guess
@@ -396,7 +396,7 @@ contains
        
        ! 5. Add the correction vectors to the current basis
        if (size(V, 2) <= max_dim) then
-          
+
           ! append correction to the current basis
           call check_deallocate_matrix(correction)
           allocate(correction(size(ritz_vectors, 1), size(V, 2)))
@@ -410,7 +410,6 @@ contains
           call lapack_qr(V)
           
        else
-          
           ! 6. Otherwise reduce the basis of the subspace to the current correction
           V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :dim_sub))
           
