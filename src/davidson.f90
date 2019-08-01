@@ -502,7 +502,7 @@ function compute_DPR_free(fun_mtx_gemv, fun_stx_gemv, V, eigenvalues, eigenvecto
       vectors = lapack_matmul('N','N', V, eigenvectors)
 
       ! initialize the correction vectors
-      correction = fun_mtx_gemv(vectors) - lapack_matmul('N','N',fun_stx_gemv(vectors), diag_eigenvalues)
+      correction = fun_mtx_gemv(vectors) - lapack_matmul(diag_eigenvalues, 'N','N',fun_stx_gemv(vectors))
 
       do j=1, size(V, 2)
          do ii=1,size(correction,1)
