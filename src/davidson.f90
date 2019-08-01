@@ -487,7 +487,7 @@ function compute_DPR_free(fun_mtx_gemv, fun_stx_gemv, V, eigenvalues, eigenvecto
       !real(dp), dimension(size(V, 1),1) :: vector
       real(dp), dimension(size(V, 1), size(V, 2)) :: correction, vectors
       real(dp), dimension(size(V, 1), size(V, 2)) :: proj_mtx, proj_stx
-      real(dp), dimension(size(V, 2),size(V, 2)) :: diag_eigenvalues
+      real(dp), dimension(size(V, 1),size(V, 1)) :: diag_eigenvalues
       integer :: ii, j
       integer :: m
 
