@@ -252,7 +252,7 @@ module davidson_free
   use numeric_kinds, only: dp
   use lapack_wrapper, only: lapack_generalized_eigensolver, lapack_matmul, lapack_matrix_vector, &
        lapack_qr, lapack_solver
-  use array_utils, only: concatenate, generate_preconditioner, norm
+  use array_utils, only: concatenate, eye, generate_preconditioner, norm
   use davidson_dense, only: generalized_eigensolver_dense
   implicit none
 
@@ -486,23 +486,28 @@ function compute_DPR_free(fun_mtx_gemv, fun_stx_gemv, V, eigenvalues, eigenvecto
       ! local variables
       !real(dp), dimension(size(V, 1),1) :: vector
       real(dp), dimension(size(V, 1), size(V, 2)) :: correction, vectors
+      real(dp), dimension(size(V, 1), size(V, 2)) :: proj_mtx, proj_stx
       real(dp), dimension(size(V, 2),size(V, 2)) :: diag_eigenvalues
       integer :: ii, j
-      integer :: dim
-            
-      dim = size(V,1)
+      integer :: m
 
-      ! create a diagonal matrix of eigenvalues
-      diag_eigenvalues = 0E0
-      do ii =1, size(V,2)
-        diag_eigenvalues(ii,ii) = eigenvalues(ii)
-      end do
+      ! leading dimension of array V
+      m = size(V,1)
 
       ! create all the ritz vectors
       vectors = lapack_matmul('N','N', V, eigenvectors)
 
-      ! initialize the correction vectors
-      correction = fun_mtx_gemv(vectors) - lapack_matmul(diag_eigenvalues, 'N','N',fun_stx_gemv(vectors))
+      ! create a diagonal matrix of eigenvalues
+      diag_eigenvalues = 0.0_dp
+
+      ! computed the projected matrices
+      proj_mtx = fun_mtx_gemv(vectors)
+      proj_stx = fun_stx_gemv(vectors)
+
+      do ii =1, size(V,2)
+         diag_eigenvalues = eye(m, m, eigenvalues(ii))
+         correction(:, ii) = proj_mtx(:, ii) - lapack_matrix_vector('N', diag_eigenvalues, proj_stx(:, ii))
+      end do
 
       do j=1, size(V, 2)
          do ii=1,size(correction,1)
