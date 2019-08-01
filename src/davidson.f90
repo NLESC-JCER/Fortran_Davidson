@@ -335,7 +335,7 @@ contains
     
     ! ! Working arrays
     real(dp), dimension(:), allocatable :: eigenvalues_sub
-    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V
+    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V, mtxV, stxV
     
     ! Iteration subpsace dimension
     dim_sub = lowest * 2
@@ -364,8 +364,10 @@ contains
     outer_loop: do i=1, max_iters
 
        ! 2. Generate subspace matrix problem by projecting into V
-       mtx_proj = lapack_matmul('T', 'N', V, fun_mtx_gemv(V))
-       stx_proj = lapack_matmul('T', 'N', V, fun_stx_gemv(V))
+       mtxV = fun_mtx_gemv(V)
+       stxV = fun_stx_gemv(V)
+       mtx_proj = lapack_matmul('T', 'N', V, mtxV)
+       stx_proj = lapack_matmul('T', 'N', V, stxV)
 
        ! 3. compute the eigenvalues and their corresponding ritz_vectors
        ! for the projected matrix using lapack
@@ -401,7 +403,7 @@ contains
           call check_deallocate_matrix(correction)
           allocate(correction(size(ritz_vectors, 1), size(V, 2)))
           
-          correction = compute_DPR_free(fun_mtx_gemv, fun_stx_gemv, V, eigenvalues_sub, eigenvectors_sub, diag_mtx, diag_stx)
+          correction = compute_DPR_free(mtxV, stxV, eigenvalues_sub, eigenvectors_sub, diag_mtx, diag_stx)
           
           ! 6. Increase Basis size
           call concatenate(V, correction)
@@ -433,7 +435,7 @@ contains
     
     ! Free memory
     call check_deallocate_matrix(correction)
-    deallocate(eigenvalues_sub, eigenvectors_sub, V, mtx_proj)
+    deallocate(eigenvalues_sub, eigenvectors_sub, V, mtx_proj, mtxV, stxV)
     
     ! free optional matrix
     call check_deallocate_matrix(stx_proj)
@@ -441,74 +443,42 @@ contains
   end subroutine generalized_eigensolver_free
   
 
-function compute_DPR_free(fun_mtx_gemv, fun_stx_gemv, V, eigenvalues, eigenvectors, diag_mtx, diag_stx) result(correction)
+function compute_DPR_free(mtxV, stxV, eigenvalues, eigenvectors, diag_mtx, diag_stx) result(correction)
 
       !> compute the correction vector using the DPR method for a matrix free diagonalization
       !> See correction_methods submodule for the implementations
-      !> \param[in] fun_mtx: function to compute matrix
-      !> \param[in] fun_stx: function to compute the matrix for the generalized case
+      !> \param[in] mtxV: projection mtx * V
+      !> \param[in] stxV: projection stx * V
       !> \param[in] V: Basis of the iteration subspace
       !> \param[in] eigenvalues: of the reduce problem
       !> \param[in] eigenvectors: of the reduce problem
       !> \return correction matrix
       
       real(dp), dimension(:), intent(in) :: eigenvalues
-      real(dp), dimension(:, :), intent(in) :: V, eigenvectors
+      real(dp), dimension(:, :), intent(in) :: eigenvectors, mtxV, stxV
       real(dp), dimension(:), intent(in) :: diag_mtx, diag_stx
 
-
-      ! Function to compute the target matrix on the fly
-      interface
-
-         function fun_mtx_gemv(input_vect) result(output_vect)
-           !> \brief Function to compute the optional mtx on the fly
-           !> \param[in] i column/row to compute from mtx
-           !> \param vec column/row from mtx
-           use numeric_kinds, only: dp
-           real (dp), dimension(:,:), intent(in) :: input_vect
-           real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
-
-         end function fun_mtx_gemv
-         
-         function fun_stx_gemv(input_vect) result(output_vect)
-           !> \brief Fucntion to compute the optional stx matrix on the fly
-           !> \param[in] i column/row to compute from stx
-           !> \param vec column/row from stx
-           use numeric_kinds, only: dp
-           real(dp), dimension(:,:), intent(in) :: input_vect
-           real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
-           
-         end function fun_stx_gemv
-
-      end interface
-      
       ! local variables
       !real(dp), dimension(size(V, 1),1) :: vector
-      real(dp), dimension(size(V, 1), size(V, 2)) :: correction, vectors
-      real(dp), dimension(size(V, 1), size(V, 2)) :: proj_mtx, proj_stx
-      real(dp), dimension(size(V, 1),size(V, 1)) :: diag_eigenvalues
+      real(dp), dimension(size(mtxV, 1), size(mtxV, 2)) :: correction
+      real(dp), dimension(size(mtxV, 1), size(mtxV, 2)) :: proj_mtx, proj_stx
+      real(dp), dimension(size(mtxV, 1),size(mtxV, 1)) :: diag_eigenvalues
       integer :: ii, j
       integer :: m
 
       ! leading dimension of array V
-      m = size(V,1)
-
-      ! create all the ritz vectors
-      vectors = lapack_matmul('N','N', V, eigenvectors)
-
-      ! create a diagonal matrix of eigenvalues
-      diag_eigenvalues = 0.0_dp
+      m = size(mtxV,1)
 
       ! computed the projected matrices
-      proj_mtx = fun_mtx_gemv(vectors)
-      proj_stx = fun_stx_gemv(vectors)
+      proj_mtx = lapack_matmul('N', 'N', mtxV, eigenvectors)
+      proj_stx = lapack_matmul('N', 'N', stxV, eigenvectors)
 
-      do ii =1, size(V,2)
+      do ii =1, size(mtxV,2)
          diag_eigenvalues = eye(m, m, eigenvalues(ii))
          correction(:, ii) = proj_mtx(:, ii) - lapack_matrix_vector('N', diag_eigenvalues, proj_stx(:, ii))
       end do
 
-      do j=1, size(V, 2)
+      do j=1, size(mtxV, 2)
          do ii=1,size(correction,1)
             correction(ii, j) = correction(ii, j) / (eigenvalues(j) * diag_stx(ii)  - diag_mtx(ii))
          end do
