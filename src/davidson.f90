@@ -234,37 +234,6 @@ contains
     
   end subroutine generalized_eigensolver_dense
 
-  subroutine update_projection_dense(A, V, A_proj)
-    !> \brief update the projected matrices
-    !> \param A: full matrix
-    !> \param V: projector
-    !> \param A_proj: projected matrix
-
-    implicit none
-    real(dp), dimension(:, :), intent(in) :: A
-    real(dp), dimension(:, :), intent(in) :: V
-    real(dp), dimension(:, :), intent(inout), allocatable :: A_proj
-    real(dp), dimension(:, :), allocatable :: tmp_array
-
-    ! local variables
-    integer :: nvec, old_dim
-
-    ! dimension of the matrices
-    nvec = size(V,2)
-    old_dim = size(A_proj,1)    
-
-    ! move to temporal array
-    allocate(tmp_array(nvec, nvec))
-    tmp_array(:old_dim, :old_dim) = A_proj
-    tmp_array(:,old_dim+1:) = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', A, V(:, old_dim+1:)))
-    tmp_array( old_dim+1:,:old_dim ) = transpose(tmp_array(:old_dim, old_dim+1:))
-    
-    ! Move to new expanded matrix
-    deallocate(A_proj)
-    call move_alloc(tmp_array, A_proj)
- 
-  end subroutine update_projection_dense
-
   subroutine check_deallocate_matrix(mtx)
     !> deallocate a matrix if allocated
     real(dp), dimension(:, :), allocatable, intent(inout) ::  mtx
@@ -439,10 +408,6 @@ contains
           
           ! 7. Orthogonalize basis
           call lapack_qr(V)
-
-          ! 8. Update the the projection 
-          call update_projection_free(fun_mtx_gemv, V, mtx_proj)
-          call update_projection_free(fun_stx_gemv, V, stx_proj)
           
        else
           
@@ -582,48 +547,6 @@ function compute_DPR_free(fun_mtx_gemv, fun_stx_gemv, V, eigenvalues, eigenvecto
 
   end function extract_diagonal_free
 
-
-  subroutine update_projection_free(fun_A_gemv, V, A_proj)
-    !> \brief update the projected matrices
-    !> \param A: full matrix
-    !> \param V: projector
-    !> \param A_proj: projected matrix
-
-    implicit none
-    real(dp), dimension(:, :), intent(in) :: V
-    real(dp), dimension(:, :), intent(inout), allocatable :: A_proj
-    real(dp), dimension(:, :), allocatable :: tmp_array
-
-    interface
-         function fun_A_gemv(input_vect) result(output_vect)
-           !> \brief Function to compute the optional mtx on the fly
-           !> \param[in] i column/row to compute from mtx
-           !> \param vec column/row from mtx
-           use numeric_kinds, only: dp
-           real (dp), dimension(:,:), intent(in) :: input_vect
-           real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
-
-         end function fun_A_gemv
-    end interface
-    
-    ! local variables
-    integer :: nvec, old_dim
-
-    ! dimension of the matrices
-    nvec = size(V,2)
-    old_dim = size(A_proj,1)    
-
-    ! move to temporal array
-    allocate(tmp_array(nvec, nvec))
-    tmp_array(:old_dim, :old_dim) = A_proj
-    tmp_array(:,old_dim+1:) = lapack_matmul('T', 'N', V, fun_A_gemv(V(:, old_dim+1:)))
-    tmp_array( old_dim+1:,:old_dim ) = transpose(tmp_array(:old_dim, old_dim+1:))
-    
-    ! Move to new expanded matrix
-    deallocate(A_proj)
-    call move_alloc(tmp_array, A_proj)
-
-  end subroutine update_projection_free
 
   function free_matmul(fun, array) result (mtx)
     !> \brief perform a matrix-matrix multiplication by generating a matrix on the fly using `fun`
