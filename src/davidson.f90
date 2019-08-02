@@ -234,37 +234,6 @@ contains
     
   end subroutine generalized_eigensolver_dense
 
-  subroutine update_projection_dense(A, V, A_proj)
-    !> \brief update the projected matrices
-    !> \param A: full matrix
-    !> \param V: projector
-    !> \param A_proj: projected matrix
-
-    implicit none
-    real(dp), dimension(:, :), intent(in) :: A
-    real(dp), dimension(:, :), intent(in) :: V
-    real(dp), dimension(:, :), intent(inout), allocatable :: A_proj
-    real(dp), dimension(:, :), allocatable :: tmp_array
-
-    ! local variables
-    integer :: nvec, old_dim
-
-    ! dimension of the matrices
-    nvec = size(V,2)
-    old_dim = size(A_proj,1)    
-
-    ! move to temporal array
-    allocate(tmp_array(nvec, nvec))
-    tmp_array(:old_dim, :old_dim) = A_proj
-    tmp_array(:,old_dim+1:) = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', A, V(:, old_dim+1:)))
-    tmp_array( old_dim+1:,:old_dim ) = transpose(tmp_array(:old_dim, old_dim+1:))
-    
-    ! Move to new expanded matrix
-    deallocate(A_proj)
-    call move_alloc(tmp_array, A_proj)
- 
-  end subroutine update_projection_dense
-
   subroutine check_deallocate_matrix(mtx)
     !> deallocate a matrix if allocated
     real(dp), dimension(:, :), allocatable, intent(inout) ::  mtx
@@ -283,7 +252,7 @@ module davidson_free
   use numeric_kinds, only: dp
   use lapack_wrapper, only: lapack_generalized_eigensolver, lapack_matmul, lapack_matrix_vector, &
        lapack_qr, lapack_solver
-  use array_utils, only: concatenate, generate_preconditioner, norm
+  use array_utils, only: concatenate, eye, generate_preconditioner, norm
   use davidson_dense, only: generalized_eigensolver_dense
   implicit none
 
@@ -366,7 +335,7 @@ contains
     
     ! ! Working arrays
     real(dp), dimension(:), allocatable :: eigenvalues_sub
-    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V
+    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V, mtxV, stxV
     
     ! Iteration subpsace dimension
     dim_sub = lowest * 2
@@ -391,13 +360,14 @@ contains
     copy_d = diag_mtx
     V = generate_preconditioner(copy_d, dim_sub) ! Initial orthonormal basis
     
-    ! 2. Generate subspace matrix problem by projecting into V
-    mtx_proj = lapack_matmul('T', 'N', V, fun_mtx_gemv(V))
-    stx_proj = lapack_matmul('T', 'N', V, fun_stx_gemv(V))
-
-    
     ! Outer loop block Davidson schema
     outer_loop: do i=1, max_iters
+
+       ! 2. Generate subspace matrix problem by projecting into V
+       mtxV = fun_mtx_gemv(V)
+       stxV = fun_stx_gemv(V)
+       mtx_proj = lapack_matmul('T', 'N', V, mtxV)
+       stx_proj = lapack_matmul('T', 'N', V, stxV)
 
        ! 3. compute the eigenvalues and their corresponding ritz_vectors
        ! for the projected matrix using lapack
@@ -414,6 +384,7 @@ contains
        
        ! 4. Check for convergence
        ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
+
        do j=1,lowest
           guess = eigenvalues_sub(j) * fun_stx_gemv(reshape(ritz_vectors(:, j),(/dim_mtx,1/) ) )
           rs = fun_mtx_gemv(reshape(ritz_vectors(:, j), (/dim_mtx,1/))) - guess
@@ -427,25 +398,20 @@ contains
        
        ! 5. Add the correction vectors to the current basis
        if (size(V, 2) <= max_dim) then
-          
+
           ! append correction to the current basis
           call check_deallocate_matrix(correction)
           allocate(correction(size(ritz_vectors, 1), size(V, 2)))
           
-          correction = compute_DPR_free(fun_mtx_gemv, fun_stx_gemv, V, eigenvalues_sub, eigenvectors_sub, diag_mtx, diag_stx)
+          correction = compute_DPR_free(mtxV, stxV, eigenvalues_sub, eigenvectors_sub, diag_mtx, diag_stx)
           
           ! 6. Increase Basis size
           call concatenate(V, correction)
           
           ! 7. Orthogonalize basis
           call lapack_qr(V)
-
-          ! 8. Update the the projection 
-          call update_projection_free(fun_mtx_gemv, V, mtx_proj)
-          call update_projection_free(fun_stx_gemv, V, stx_proj)
           
        else
-          
           ! 6. Otherwise reduce the basis of the subspace to the current correction
           V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :dim_sub))
           
@@ -469,7 +435,7 @@ contains
     
     ! Free memory
     call check_deallocate_matrix(correction)
-    deallocate(eigenvalues_sub, eigenvectors_sub, V, mtx_proj)
+    deallocate(eigenvalues_sub, eigenvectors_sub, V, mtx_proj, mtxV, stxV)
     
     ! free optional matrix
     call check_deallocate_matrix(stx_proj)
@@ -477,69 +443,42 @@ contains
   end subroutine generalized_eigensolver_free
   
 
-function compute_DPR_free(fun_mtx_gemv, fun_stx_gemv, V, eigenvalues, eigenvectors, diag_mtx, diag_stx) result(correction)
+function compute_DPR_free(mtxV, stxV, eigenvalues, eigenvectors, diag_mtx, diag_stx) result(correction)
 
       !> compute the correction vector using the DPR method for a matrix free diagonalization
       !> See correction_methods submodule for the implementations
-      !> \param[in] fun_mtx: function to compute matrix
-      !> \param[in] fun_stx: function to compute the matrix for the generalized case
+      !> \param[in] mtxV: projection mtx * V
+      !> \param[in] stxV: projection stx * V
       !> \param[in] V: Basis of the iteration subspace
       !> \param[in] eigenvalues: of the reduce problem
       !> \param[in] eigenvectors: of the reduce problem
       !> \return correction matrix
       
       real(dp), dimension(:), intent(in) :: eigenvalues
-      real(dp), dimension(:, :), intent(in) :: V, eigenvectors
+      real(dp), dimension(:, :), intent(in) :: eigenvectors, mtxV, stxV
       real(dp), dimension(:), intent(in) :: diag_mtx, diag_stx
 
-
-      ! Function to compute the target matrix on the fly
-      interface
-
-         function fun_mtx_gemv(input_vect) result(output_vect)
-           !> \brief Function to compute the optional mtx on the fly
-           !> \param[in] i column/row to compute from mtx
-           !> \param vec column/row from mtx
-           use numeric_kinds, only: dp
-           real (dp), dimension(:,:), intent(in) :: input_vect
-           real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
-
-         end function fun_mtx_gemv
-         
-         function fun_stx_gemv(input_vect) result(output_vect)
-           !> \brief Fucntion to compute the optional stx matrix on the fly
-           !> \param[in] i column/row to compute from stx
-           !> \param vec column/row from stx
-           use numeric_kinds, only: dp
-           real(dp), dimension(:,:), intent(in) :: input_vect
-           real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
-           
-         end function fun_stx_gemv
-
-      end interface
-      
       ! local variables
       !real(dp), dimension(size(V, 1),1) :: vector
-      real(dp), dimension(size(V, 1), size(V, 2)) :: correction, vectors
-      real(dp), dimension(size(V, 2),size(V, 2)) :: diag_eigenvalues
+      real(dp), dimension(size(mtxV, 1), size(mtxV, 2)) :: correction
+      real(dp), dimension(size(mtxV, 1), size(mtxV, 2)) :: proj_mtx, proj_stx
+      real(dp), dimension(size(mtxV, 1),size(mtxV, 1)) :: diag_eigenvalues
       integer :: ii, j
-      integer :: dim
-            
-      dim = size(V,1)
+      integer :: m
 
-      ! create a diagonal matrix of eigenvalues
-      diag_eigenvalues = 0E0
-      do ii =1, size(V,2)
-        diag_eigenvalues(ii,ii) = eigenvalues(ii)
+      ! leading dimension of array V
+      m = size(mtxV,1)
+
+      ! computed the projected matrices
+      proj_mtx = lapack_matmul('N', 'N', mtxV, eigenvectors)
+      proj_stx = lapack_matmul('N', 'N', stxV, eigenvectors)
+
+      do ii =1, size(mtxV,2)
+         diag_eigenvalues = eye(m, m, eigenvalues(ii))
+         correction(:, ii) = proj_mtx(:, ii) - lapack_matrix_vector('N', diag_eigenvalues, proj_stx(:, ii))
       end do
 
-      ! create all the ritz vectors
-      vectors = lapack_matmul('N','N', V, eigenvectors)
-
-      ! initialize the correction vectors
-      correction = fun_mtx_gemv(vectors) - lapack_matmul('N','N',fun_stx_gemv(vectors), diag_eigenvalues)
-
-      do j=1, size(V, 2)
+      do j=1, size(mtxV, 2)
          do ii=1,size(correction,1)
             correction(ii, j) = correction(ii, j) / (eigenvalues(j) * diag_stx(ii)  - diag_mtx(ii))
          end do
@@ -582,48 +521,6 @@ function compute_DPR_free(fun_mtx_gemv, fun_stx_gemv, V, eigenvalues, eigenvecto
 
   end function extract_diagonal_free
 
-
-  subroutine update_projection_free(fun_A_gemv, V, A_proj)
-    !> \brief update the projected matrices
-    !> \param A: full matrix
-    !> \param V: projector
-    !> \param A_proj: projected matrix
-
-    implicit none
-    real(dp), dimension(:, :), intent(in) :: V
-    real(dp), dimension(:, :), intent(inout), allocatable :: A_proj
-    real(dp), dimension(:, :), allocatable :: tmp_array
-
-    interface
-         function fun_A_gemv(input_vect) result(output_vect)
-           !> \brief Function to compute the optional mtx on the fly
-           !> \param[in] i column/row to compute from mtx
-           !> \param vec column/row from mtx
-           use numeric_kinds, only: dp
-           real (dp), dimension(:,:), intent(in) :: input_vect
-           real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
-
-         end function fun_A_gemv
-    end interface
-    
-    ! local variables
-    integer :: nvec, old_dim
-
-    ! dimension of the matrices
-    nvec = size(V,2)
-    old_dim = size(A_proj,1)    
-
-    ! move to temporal array
-    allocate(tmp_array(nvec, nvec))
-    tmp_array(:old_dim, :old_dim) = A_proj
-    tmp_array(:,old_dim+1:) = lapack_matmul('T', 'N', V, fun_A_gemv(V(:, old_dim+1:)))
-    tmp_array( old_dim+1:,:old_dim ) = transpose(tmp_array(:old_dim, old_dim+1:))
-    
-    ! Move to new expanded matrix
-    deallocate(A_proj)
-    call move_alloc(tmp_array, A_proj)
-
-  end subroutine update_projection_free
 
   function free_matmul(fun, array) result (mtx)
     !> \brief perform a matrix-matrix multiplication by generating a matrix on the fly using `fun`
