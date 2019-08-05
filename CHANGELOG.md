@@ -1,4 +1,14 @@
 
+# Version 0.1.0
+
+### Changed
+
+* Update the whole projection matrix after adding some correction vector. Replace the block update schema.
+
+### Fixed
+
+* Fixed [several bugs](https://github.com/NLESC-JCER/Fortran_Davidson/issues/29) in the matrix free implementation.
+
 # Version 0.0.5
 
 ### New
