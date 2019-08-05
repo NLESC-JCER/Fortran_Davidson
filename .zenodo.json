@@ -5,8 +5,13 @@
             "orcid": "0000-0001-8286-677X"
         },
         {
-            "name": "Renaud, Nicolas"
-        }
+            "name": "Renaud, Nicolas",
+	    "orcid": "0000-0001-9589-2694"
+        },
+	{
+	    "name":  "López-Tarifa, Pablo",
+	    "orcid": "0000-0002-4136-1860"
+	}
     ],
     "description": "Davidson eigensolver implemented in Fortran",
     "keywords": [
