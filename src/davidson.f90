@@ -513,8 +513,8 @@ function compute_DPR_free(mtxV, stxV, eigenvalues, eigenvectors, diag_mtx, diag_
     real(dp), dimension(dim,1) :: tmp_array
     
     do ii = 1,dim
-      tmp_array = 0E0
-      tmp_array(ii,1) = 1.0
+      tmp_array = 0.0_dp
+      tmp_array(ii,1) = 1.0_dp
       tmp_array = fun_A_gemv(tmp_array)
       out(ii) = tmp_array(ii,1)
     end do
