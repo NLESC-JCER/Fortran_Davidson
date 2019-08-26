@@ -414,11 +414,6 @@ contains
        else
           ! 6. Otherwise reduce the basis of the subspace to the current correction
           V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :dim_sub))
-          
-          ! we refresh the projected matrices
-          mtx_proj = lapack_matmul('T', 'N', V, fun_mtx_gemv(V))
-          stx_proj = lapack_matmul('T', 'N', V, fun_stx_gemv(V))
-          
        end if
        
     end do outer_loop
