@@ -47,7 +47,7 @@ module davidson_dense
   
 contains
 
-    subroutine generalized_eigensolver_dense(mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
+    subroutine generalized_eigensolver_dense(mtx, eigenvalues, eigenvectors, lowest, method, max_iters, &
         tolerance, iters, max_dim_sub, stx)
      !> Implementation storing in memory the initial densed matrix mtx.
       
@@ -55,8 +55,8 @@ contains
     !> \param[in, opt] Optional matrix to solve the general eigenvalue problem:
     !> \f$ mtx \lambda = V stx \lambda \f$
     !> \param[out] eigenvalues Computed eigenvalues
-    !> \param[out] ritz_vectors approximation to the eigenvectors
-    !> \param[in] lowest Number of lowest eigenvalues/ritz_vectors to compute
+    !> \param[out] eigenvectors approximation to the eigenvectors
+    !> \param[in] lowest Number of lowest eigenvalues/eigenvectors to compute
     !> \param[in] method Method to compute the correction vector. Available
     !> methods are,
     !>    DPR: Diagonal-Preconditioned-Residue
@@ -66,7 +66,7 @@ contains
     !> \param[in] method: Method to compute the correction vectors
     !> \param[in, opt] max_dim_sub: maximum dimension of the subspace search   
     !> \param[out] iters: Number of iterations until convergence
-    !> \return eigenvalues and ritz_vectors of the matrix `mtx`
+    !> \return eigenvalues and eigenvectors of the matrix `mtx`
 
     implicit none
     ! input/output variable
@@ -74,7 +74,7 @@ contains
     real(dp), dimension(:, :), intent(in) :: mtx
     real(dp), dimension(:, :), intent(in), optional :: stx
     real(dp), dimension(lowest), intent(out) :: eigenvalues
-    real(dp), dimension(:, :), intent(out) :: ritz_vectors
+    real(dp), dimension(:, :), intent(out) :: eigenvectors
     integer, intent(in) :: max_iters
     integer, intent(in), optional :: max_dim_sub
     real(dp), intent(in) :: tolerance
@@ -91,7 +91,7 @@ contains
 
     ! Working arrays
     real(dp), dimension(:), allocatable :: eigenvalues_sub
-    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V
+    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V, ritz_vectors
 
     ! Diagonal matrix
     real(dp), dimension(size(mtx, 1)) :: d
@@ -154,7 +154,8 @@ contains
        end if
 
        ! 4. Check for convergence
-       ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
+       ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub)
+       eigenvectors = ritz_vectors(:,:lowest) ! Guess eigenvectors
        do j=1,lowest
           if(gev) then
             guess = eigenvalues_sub(j) * lapack_matrix_vector('N',stx,ritz_vectors(:, j))
