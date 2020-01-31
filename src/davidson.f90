@@ -82,7 +82,7 @@ contains
     integer, intent(out) :: iters
     
     !local variables
-    integer :: i, j, dim_sub, max_dim
+    integer :: i, j, initial_dimension, max_dim
     integer :: n_converged ! Number of converged eigenvalue/eigenvector pairs
     
     ! Basis of subspace of approximants
@@ -103,7 +103,7 @@ contains
     logical, dimension(lowest) :: has_converged
 
     ! Iteration subpsace dimension
-    dim_sub = lowest * 2
+    initial_dimension = lowest * 2
 
     ! Initial number of converged eigenvalue/eigenvector pairs
     n_converged = 0
@@ -123,7 +123,7 @@ contains
     ! Select the initial ortogonal subspace based on lowest elements
     ! of the diagonal of the matrix
     d = diagonal(mtx)
-    V = generate_preconditioner(d, dim_sub)
+    V = generate_preconditioner(d, initial_dimension)
 
    ! 2. Generate subpace matrix problem by projecting into V
    mtx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
@@ -200,7 +200,7 @@ contains
        else
 
           ! 6. Otherwise reduce the basis of the subspace to the current correction
-          V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :dim_sub))
+          V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :initial_dimension))
 
        end if
 
@@ -326,7 +326,7 @@ contains
     end interface
     
     !local variables
-    integer :: dim_mtx, dim_sub, max_dim, i, j
+    integer :: dim_mtx, initial_dimension, max_dim, i, j
     
     ! ! Basis of subspace of approximants
     real(dp), dimension(size(ritz_vectors, 1),1) :: guess, rs
@@ -338,7 +338,7 @@ contains
     real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V, mtxV, stxV
     
     ! Iteration subpsace dimension
-    dim_sub = lowest * 2
+    initial_dimension = lowest * 2
     
     ! maximum dimension of the basis for the subspace
     if (present(max_dim_sub)) then
@@ -358,7 +358,7 @@ contains
     ! Select the initial ortogonal subspace based on lowest elements
     ! of the diagonal of the matrix
     copy_d = diag_mtx
-    V = generate_preconditioner(copy_d, dim_sub) ! Initial orthonormal basis
+    V = generate_preconditioner(copy_d, initial_dimension) ! Initial orthonormal basis
     
     ! Outer loop block Davidson schema
     outer_loop: do i=1, max_iters
@@ -413,13 +413,13 @@ contains
           
        else
           ! 6. Otherwise reduce the basis of the subspace to the current correction
-          V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :dim_sub))
+          V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :initial_dimension))
        end if
        
     end do outer_loop
     
     !  8. Check convergence
-    if (i > max_iters / dim_sub) then
+    if (i > max_iters / initial_dimension) then
        print *, "Warning: Algorithm did not converge!!"
     end if
     
