@@ -1,3 +1,9 @@
+# Version 0.1.1
+
+### Fixed
+
+* Fixed the recomputation of the [ritz_vectors](https://github.com/NLESC-JCER/Fortran_Davidson/issues/34)
+
 
 # Version 0.1.0
 
