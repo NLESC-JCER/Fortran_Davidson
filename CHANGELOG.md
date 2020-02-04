@@ -1,3 +1,9 @@
+# Version 0.1.1
+
+### Changed
+
+* Improved variables names.
+* Removed unnecessary ritz_vectors calculations.
 
 # Version 0.1.0
 
