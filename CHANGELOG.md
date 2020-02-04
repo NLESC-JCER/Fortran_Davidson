@@ -5,6 +5,7 @@
 * Improved variables names.
 * Removed unnecessary ritz_vectors calculations.
 * Optimized the DPR for the free version.
+* Removed recomputation of the residues.
 
 # Version 0.1.0
 
