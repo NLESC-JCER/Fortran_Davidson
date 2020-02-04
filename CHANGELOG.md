@@ -1,9 +1,10 @@
-# Version 0.1.1
+# Version 0.1.1 [04/02/2020]
 
 ### Changed
 
 * Improved variables names.
 * Removed unnecessary ritz_vectors calculations.
+* Optimized the DPR for the free version.
 
 # Version 0.1.0
 
