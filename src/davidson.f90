@@ -24,22 +24,23 @@ module davidson_dense
   public :: generalized_eigensolver_dense
 
   interface
-     module function compute_correction_generalized_dense(mtx, V, eigenvalues, eigenvectors, method, stx) &
+     module function compute_correction_generalized_dense(matrix, eigenvalues, ritz_vectors, residues, method, second_matrix) &
           result(correction)
        !> compute the correction vector using a given `method` for the Davidson algorithm
        !> See correction_methods submodule for the implementations
-       !> \param[in] mtx: Original matrix
-       !> \param[in] stx: Matrix to compute the general eigenvalue problem
+       !> \param[in] matrix: Original matrix
+       !> \param[in] second_matrix: Matrix to compute the general eigenvalue problem
        !> \param[in] V: Basis of the iteration subspace
        !> \param[in] eigenvalues: of the reduce problem
-       !> \param[in] eigenvectors: of the reduce problem
+       !> \param[in] ritz_vectors: guess eigenvectors
+       !> \param[in] residues: matrix of residues
        !> \param[in] method: name of the method to compute the correction
        
        real(dp), dimension(:), intent(in) :: eigenvalues
-       real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
-       real(dp), dimension(:, :), intent(in), optional :: stx
+       real(dp), dimension(:, :), intent(in) :: matrix, ritz_vectors, residues
+       real(dp), dimension(:, :), intent(in), optional :: second_matrix
        character(len=*), optional, intent(in) :: method
-       real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
+       real(dp), dimension(size(matrix, 1), size(ritz_vectors, 2)) :: correction
        
      end function compute_correction_generalized_dense
 
@@ -47,35 +48,35 @@ module davidson_dense
   
 contains
 
-    subroutine generalized_eigensolver_dense(mtx, eigenvalues, ritz_vectors, lowest, method, max_iters, &
-        tolerance, iters, max_dim_sub, stx)
-     !> Implementation storing in memory the initial densed matrix mtx.
+    subroutine generalized_eigensolver_dense(matrix, eigenvalues, eigenvectors, lowest, method, max_iterations, &
+        tolerance, iters, max_dim_sub, second_matrix)
+     !> Implementation storing in memory the initial densed matrix.
       
-    !> \param[in] mtx: Matrix to diagonalize
+    !> \param[in] matrix: Matrix to diagonalize
     !> \param[in, opt] Optional matrix to solve the general eigenvalue problem:
-    !> \f$ mtx \lambda = V stx \lambda \f$
+    !> \f$ matrix \lambda = V second_matrix \lambda \f$
     !> \param[out] eigenvalues Computed eigenvalues
-    !> \param[out] ritz_vectors approximation to the eigenvectors
-    !> \param[in] lowest Number of lowest eigenvalues/ritz_vectors to compute
+    !> \param[out] eigenvectors approximation to the eigenvectors
+    !> \param[in] lowest Number of lowest eigenvalues/eigenvectors to compute
     !> \param[in] method Method to compute the correction vector. Available
     !> methods are,
     !>    DPR: Diagonal-Preconditioned-Residue
     !>    GJD: Generalized Jacobi Davidson
-    !> \param[in] max_iters: Maximum number of iterations
+    !> \param[in] max_iterations: Maximum number of iterations
     !> \param[in] tolerance norm-2 error of the eigenvalues
     !> \param[in] method: Method to compute the correction vectors
     !> \param[in, opt] max_dim_sub: maximum dimension of the subspace search   
     !> \param[out] iters: Number of iterations until convergence
-    !> \return eigenvalues and ritz_vectors of the matrix `mtx`
+    !> \return eigenvalues and eigenvectors of the matrix `matrix`
 
     implicit none
     ! input/output variable
     integer, intent(in) :: lowest
-    real(dp), dimension(:, :), intent(in) :: mtx
-    real(dp), dimension(:, :), intent(in), optional :: stx
+    real(dp), dimension(:, :), intent(in) :: matrix
+    real(dp), dimension(:, :), intent(in), optional :: second_matrix
     real(dp), dimension(lowest), intent(out) :: eigenvalues
-    real(dp), dimension(:, :), intent(out) :: ritz_vectors
-    integer, intent(in) :: max_iters
+    real(dp), dimension(:, :), intent(out) :: eigenvectors
+    integer, intent(in) :: max_iterations
     integer, intent(in), optional :: max_dim_sub
     real(dp), intent(in) :: tolerance
     character(len=*), intent(in) :: method
@@ -86,15 +87,16 @@ contains
     integer :: n_converged ! Number of converged eigenvalue/eigenvector pairs
     
     ! Basis of subspace of approximants
-    real(dp), dimension(size(mtx, 1)) :: guess, rs
+    real(dp), dimension(size(matrix, 1)) :: guess
     real(dp), dimension(lowest):: errors
 
     ! Working arrays
     real(dp), dimension(:), allocatable :: eigenvalues_sub
-    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V
+    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, matrix_proj, second_matrix_proj, V
+    real(dp), dimension(:, :), allocatable ::residues, ritz_vectors
 
     ! Diagonal matrix
-    real(dp), dimension(size(mtx, 1)) :: d
+    real(dp), dimension(size(matrix, 1)) :: d
     
     ! generalize problem
     logical :: gev 
@@ -117,23 +119,23 @@ contains
     endif
 
     ! generalied problem
-    gev = present(stx)
+    gev = present(second_matrix)
 
     ! 1. Variables initialization
     ! Select the initial ortogonal subspace based on lowest elements
     ! of the diagonal of the matrix
-    d = diagonal(mtx)
+    d = diagonal(matrix)
     V = generate_preconditioner(d, initial_dimension)
 
    ! 2. Generate subpace matrix problem by projecting into V
-   mtx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
+   matrix_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', matrix, V))
 
    if(gev) then
-    stx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', stx, V))
+    second_matrix_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', second_matrix, V))
    end if
 
     ! ! Outer loop block Davidson schema
-    outer_loop: do i=1, max_iters
+    outer_loop: do i=1, max_iterations
 
        ! 3. compute the eigenvalues and their corresponding ritz_vectors
        ! for the projected matrix using lapack
@@ -143,34 +145,46 @@ contains
           deallocate(eigenvalues_sub)
        end if
 
-       allocate(eigenvalues_sub(size(mtx_proj, 1)))
-       allocate(eigenvectors_sub(size(mtx_proj, 1), size(mtx_proj, 2)))
+       allocate(eigenvalues_sub(size(matrix_proj, 1)))
+       allocate(eigenvectors_sub(size(matrix_proj, 1), size(matrix_proj, 2)))
 
 
        if (gev) then
-        call lapack_generalized_eigensolver(mtx_proj, eigenvalues_sub, eigenvectors_sub, stx_proj)
+        call lapack_generalized_eigensolver(matrix_proj, eigenvalues_sub, eigenvectors_sub, second_matrix_proj)
        else
-        call lapack_generalized_eigensolver(mtx_proj, eigenvalues_sub, eigenvectors_sub)
+        call lapack_generalized_eigensolver(matrix_proj, eigenvalues_sub, eigenvectors_sub)
        end if
 
-       ! 4. Check for convergence
-       ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
-       do j=1,lowest
+       ! 4.1 Compute residues
+       ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub)
+
+       call check_deallocate_matrix(residues)
+       allocate(residues(size(matrix, 1), size(V, 2)))
+       do j=1, size(V, 2)
           if(gev) then
-            guess = eigenvalues_sub(j) * lapack_matrix_vector('N',stx,ritz_vectors(:, j))
+             guess = eigenvalues_sub(j) * lapack_matrix_vector('N',second_matrix,ritz_vectors(:, j))
           else
-            guess = eigenvalues_sub(j) * ritz_vectors(:, j)
+             guess = eigenvalues_sub(j) * ritz_vectors(:, j)
           end if
-          rs = lapack_matrix_vector('N', mtx, ritz_vectors(:, j)) - guess
-          errors(j) = norm(rs)
-          ! Check which eigenvalues has converged
+          residues(:, j) = lapack_matrix_vector('N', matrix, ritz_vectors(:, j)) - guess
+       end do
+
+       ! 4.2 Check for convergence
+       do j = 1,lowest
+          errors(j) = norm(residues(:, j))
           if (errors(j) < tolerance) then
              has_converged(j) = .true.
           end if
        end do
+
        
        ! Count converged pairs of eigenvalues/eigenvectors
        n_converged = n_converged + count(errors < tolerance)
+
+       ! Select the lowest eigenvalues and their corresponding ritz_vectors
+       ! They are sort in increasing order
+       eigenvalues = eigenvalues_sub(:lowest)
+       eigenvectors = ritz_vectors(:,:lowest)
        
        if (all(has_converged)) then
           iters = i
@@ -182,12 +196,13 @@ contains
 
           ! append correction to the current basis
           call check_deallocate_matrix(correction)
-          allocate(correction(size(mtx, 1), size(V, 2)))
+          allocate(correction(size(matrix, 1), size(V, 2)))
 
           if(gev) then
-            correction = compute_correction_generalized_dense(mtx, V, eigenvalues_sub, eigenvectors_sub, method, stx)
+             correction = compute_correction_generalized_dense(matrix, eigenvalues_sub, ritz_vectors, &
+             residues, method, second_matrix)
           else
-            correction = compute_correction_generalized_dense(mtx, V, eigenvalues_sub, eigenvectors_sub, method)
+            correction = compute_correction_generalized_dense(matrix, eigenvalues_sub, ritz_vectors, residues, method)
           end if
 
 
@@ -205,41 +220,37 @@ contains
        end if
 
        ! we refresh the projected matrices
-       mtx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', mtx, V))
+       matrix_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', matrix, V))
 
        if(gev) then
-          stx_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', stx, V))
+          second_matrix_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', second_matrix, V))
        end if
       
     end do outer_loop
 
     !  8. Check convergence
-    if (i > max_iters) then
+    if (i > max_iterations) then
        iters = i
        print *, "Warning: Algorithm did not converge!!"
     end if
-    
-    ! Select the lowest eigenvalues and their corresponding ritz_vectors
-    ! They are sort in increasing order
-    eigenvalues = eigenvalues_sub(:lowest)
-    
+        
     ! Free memory
     call check_deallocate_matrix(correction)
-    deallocate(eigenvalues_sub, eigenvectors_sub, V, mtx_proj)
+    deallocate(eigenvalues_sub, eigenvectors_sub, V, matrix_proj)
 
     ! free optional matrix
     if (gev) then
-       call check_deallocate_matrix(stx_proj)
+       call check_deallocate_matrix(second_matrix_proj)
     endif
     
   end subroutine generalized_eigensolver_dense
 
-  subroutine check_deallocate_matrix(mtx)
+  subroutine check_deallocate_matrix(matrix)
     !> deallocate a matrix if allocated
-    real(dp), dimension(:, :), allocatable, intent(inout) ::  mtx
+    real(dp), dimension(:, :), allocatable, intent(inout) ::  matrix
     
-    if (allocated(mtx)) then
-       deallocate(mtx)
+    if (allocated(matrix)) then
+       deallocate(matrix)
     end if
     
   end subroutine check_deallocate_matrix  
@@ -263,17 +274,17 @@ module davidson_free
   
 contains
 
- subroutine generalized_eigensolver_free(fun_mtx_gemv, eigenvalues, ritz_vectors, lowest, method, max_iters, &
-       tolerance, iters, max_dim_sub, fun_stx_gemv)
-    !> \brief use a pair of functions fun_mtx and fun_stx to compute on the fly the matrices to solve
+ subroutine generalized_eigensolver_free(fun_matrix_gemv, eigenvalues, ritz_vectors, lowest, method, max_iterations, &
+       tolerance, iters, max_dim_sub, fun_second_matrix_gemv)
+    !> \brief use a pair of functions fun_matrix and fun_second_matrix to compute on the fly the matrices to solve
     !>  the general eigenvalue problem
     !> The current implementation uses a general  davidson algorithm, meaning
     !> that it compute all the eigenvalues simultaneusly using a block approach.
     !> The family of Davidson algorithm only differ in the way that the correction
     !> vector is computed.
     
-    !> \param[in] fun_mtx_gemv: Function to apply the matrix to a buncof vectors
-    !> \param[in, opt] fun_stx_gemv: (optional) function to apply the pencil to a bunch of vectors.
+    !> \param[in] fun_matrix_gemv: Function to apply the matrix to a buncof vectors
+    !> \param[in, opt] fun_second_matrix_gemv: (optional) function to apply the pencil to a bunch of vectors.
     !> \param[out] eigenvalues Computed eigenvalues
     !> \param[out] ritz_vectors approximation to the eigenvectors
     !> \param[in] lowest Number of lowest eigenvalues/ritz_vectors to compute
@@ -281,12 +292,12 @@ contains
     !> methods are,
     !>    DPR: Diagonal-Preconditioned-Residue
     !>    GJD: Generalized Jacobi Davidson
-    !> \param[in] max_iters: Maximum number of iterations
+    !> \param[in] max_iterations: Maximum number of iterations
     !> \param[in] tolerance norm-2 error of the eigenvalues
     !> \param[in] method: Method to compute the correction vectors
     !> \param[in, opt] max_dim_sub: maximum dimension of the subspace search   
     !> \param[out] iters: Number of iterations until convergence
-    !> \return eigenvalues and ritz_vectors of the matrix `mtx`
+    !> \return eigenvalues and ritz_vectors of the matrix `matrix`
 
     implicit none
 
@@ -294,7 +305,7 @@ contains
     integer, intent(in) :: lowest
     real(dp), dimension(lowest), intent(out) :: eigenvalues
     real(dp), dimension(:, :), intent(out) :: ritz_vectors
-    integer, intent(in) :: max_iters
+    integer, intent(in) :: max_iterations
     integer, intent(in), optional :: max_dim_sub
     real(dp), intent(in) :: tolerance
     character(len=*), intent(in) :: method
@@ -303,39 +314,39 @@ contains
     ! Function to compute the target matrix on the fly
     interface
 
-       function fun_mtx_gemv(input_vect) result(output_vect)
-         !> \brief Function to compute the optional mtx on the fly
-         !> \param[in] i column/row to compute from mtx
-         !> \param vec column/row from mtx
+       function fun_matrix_gemv(input_vect) result(output_vect)
+         !> \brief Function to compute the optional matrix on the fly
+         !> \param[in] i column/row to compute from matrix
+         !> \param vec column/row from matrix
          use numeric_kinds, only: dp
          real (dp), dimension(:,:), intent(in) :: input_vect
          real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
 
-       end function fun_mtx_gemv
+       end function fun_matrix_gemv
        
-       function fun_stx_gemv(input_vect) result(output_vect)
-         !> \brief Fucntion to compute the optional stx matrix on the fly
-         !> \param[in] i column/row to compute from stx
-         !> \param vec column/row from stx
+       function fun_second_matrix_gemv(input_vect) result(output_vect)
+         !> \brief Fucntion to compute the optional second_matrix matrix on the fly
+         !> \param[in] i column/row to compute from second_matrix
+         !> \param vec column/row from second_matrix
          use numeric_kinds, only: dp
          real(dp), dimension(:,:), intent(in) :: input_vect
          real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
          
-       end function fun_stx_gemv
+       end function fun_second_matrix_gemv
 
     end interface
     
     !local variables
-    integer :: dim_mtx, initial_dimension, max_dim, i, j
+    integer :: dim_matrix, initial_dimension, max_dim, i, j
     
     ! ! Basis of subspace of approximants
-    real(dp), dimension(size(ritz_vectors, 1),1) :: guess, rs
-    real(dp), dimension(size(ritz_vectors, 1)  ) :: diag_mtx, diag_stx, copy_d
+    real(dp), dimension(size(ritz_vectors, 1)  ) :: diag_matrix, diag_second_matrix, copy_d
     real(dp), dimension(lowest):: errors
     
     ! ! Working arrays
     real(dp), dimension(:), allocatable :: eigenvalues_sub
-    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, mtx_proj, stx_proj, V, mtxV, stxV
+    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, guess, lambda, matrix_proj
+    real(dp), dimension(:, :), allocatable :: V, second_matrix_proj, matrixV, second_matrixV, residues
     
     ! Iteration subpsace dimension
     initial_dimension = lowest * 2
@@ -348,26 +359,26 @@ contains
     endif
     
     ! dimension of the matrix
-    dim_mtx = size(ritz_vectors, 1)
+    dim_matrix = size(ritz_vectors, 1)
 
     ! extract the diagonals of the matrices
-    diag_mtx = extract_diagonal_free(fun_mtx_gemv,dim_mtx)
-    diag_stx = extract_diagonal_free(fun_stx_gemv,dim_mtx)
+    diag_matrix = extract_diagonal_free(fun_matrix_gemv,dim_matrix)
+    diag_second_matrix = extract_diagonal_free(fun_second_matrix_gemv,dim_matrix)
     
     ! 1. Variables initialization
     ! Select the initial ortogonal subspace based on lowest elements
     ! of the diagonal of the matrix
-    copy_d = diag_mtx
+    copy_d = diag_matrix
     V = generate_preconditioner(copy_d, initial_dimension) ! Initial orthonormal basis
     
     ! Outer loop block Davidson schema
-    outer_loop: do i=1, max_iters
+    outer_loop: do i=1, max_iterations
 
        ! 2. Generate subspace matrix problem by projecting into V
-       mtxV = fun_mtx_gemv(V)
-       stxV = fun_stx_gemv(V)
-       mtx_proj = lapack_matmul('T', 'N', V, mtxV)
-       stx_proj = lapack_matmul('T', 'N', V, stxV)
+       matrixV = fun_matrix_gemv(V)
+       second_matrixV = fun_second_matrix_gemv(V)
+       matrix_proj = lapack_matmul('T', 'N', V, matrixV)
+       second_matrix_proj = lapack_matmul('T', 'N', V, second_matrixV)
 
        ! 3. compute the eigenvalues and their corresponding ritz_vectors
        ! for the projected matrix using lapack
@@ -377,18 +388,29 @@ contains
           deallocate(eigenvalues_sub)
        end if
        
-       allocate(eigenvalues_sub(size(mtx_proj, 1)))
-       allocate(eigenvectors_sub(size(mtx_proj, 1), size(mtx_proj, 2)))
+       allocate(eigenvalues_sub(size(matrix_proj, 1)))
+       allocate(eigenvectors_sub(size(matrix_proj, 1), size(matrix_proj, 2)))
        
-       call lapack_generalized_eigensolver(mtx_proj, eigenvalues_sub, eigenvectors_sub, stx_proj)
+       call lapack_generalized_eigensolver(matrix_proj, eigenvalues_sub, eigenvectors_sub, second_matrix_proj)
        
        ! 4. Check for convergence
        ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
 
+       ! 4.1 Residue calculation
+       !! Matrix with the the eigenvalues in the diagonal
+       lambda = eye( size(V, 2), size(V, 2))
+       do j= 1, size(V, 2)
+          lambda(j, j)= eigenvalues_sub(j)
+       enddo
+
+       ! residues
+       residues = lapack_matmul('N', 'N', second_matrixV, eigenvectors_sub)
+       guess = lapack_matmul('N', 'N', residues, lambda)
+       deallocate(residues)
+       residues =  lapack_matmul('N', 'N', matrixV, eigenvectors_sub) - guess
+       ! errors
        do j=1,lowest
-          guess = eigenvalues_sub(j) * fun_stx_gemv(reshape(ritz_vectors(:, j),(/dim_mtx,1/) ) )
-          rs = fun_mtx_gemv(reshape(ritz_vectors(:, j), (/dim_mtx,1/))) - guess
-          errors(j) = norm(reshape(rs,(/dim_mtx/)))
+          errors(j) = norm(residues(:, j))
        end do
        
        if (all(errors < tolerance)) then
@@ -402,8 +424,8 @@ contains
           ! append correction to the current basis
           call check_deallocate_matrix(correction)
           allocate(correction(size(ritz_vectors, 1), size(V, 2)))
-          
-          correction = compute_DPR_free(mtxV, stxV, eigenvalues_sub, eigenvectors_sub, diag_mtx, diag_stx)
+
+          correction = compute_DPR_free(matrixV, eigenvalues_sub, residues, diag_matrix, diag_second_matrix)
           
           ! 6. Increase Basis size
           call concatenate(V, correction)
@@ -419,7 +441,7 @@ contains
     end do outer_loop
     
     !  8. Check convergence
-    if (i > max_iters / initial_dimension) then
+    if (i > max_iterations / initial_dimension) then
        print *, "Warning: Algorithm did not converge!!"
     end if
     
@@ -430,52 +452,36 @@ contains
     
     ! Free memory
     call check_deallocate_matrix(correction)
-    deallocate(eigenvalues_sub, eigenvectors_sub, V, mtx_proj, mtxV, stxV)
+    deallocate(eigenvalues_sub, eigenvectors_sub, V, matrix_proj, matrixV, second_matrixV, guess, residues)
     
     ! free optional matrix
-    call check_deallocate_matrix(stx_proj)
+    call check_deallocate_matrix(second_matrix_proj)
     
   end subroutine generalized_eigensolver_free
   
 
-function compute_DPR_free(mtxV, stxV, eigenvalues, eigenvectors, diag_mtx, diag_stx) result(correction)
+function compute_DPR_free(matrixV, eigenvalues, residues, diag_matrix, diag_second_matrix) result(correction)
 
       !> compute the correction vector using the DPR method for a matrix free diagonalization
       !> See correction_methods submodule for the implementations
-      !> \param[in] mtxV: projection mtx * V
-      !> \param[in] stxV: projection stx * V
+      !> \param[in] matrixV: projection matrix * V
       !> \param[in] V: Basis of the iteration subspace
       !> \param[in] eigenvalues: of the reduce problem
-      !> \param[in] eigenvectors: of the reduce problem
+      !> \param[in] residues: error for each eigenvalue/eigenvector pair
       !> \return correction matrix
       
       real(dp), dimension(:), intent(in) :: eigenvalues
-      real(dp), dimension(:, :), intent(in) :: eigenvectors, mtxV, stxV
-      real(dp), dimension(:), intent(in) :: diag_mtx, diag_stx
+      real(dp), dimension(:, :), intent(in) :: matrixV, residues
+      real(dp), dimension(:), intent(in) :: diag_matrix, diag_second_matrix
 
       ! local variables
       !real(dp), dimension(size(V, 1),1) :: vector
-      real(dp), dimension(size(mtxV, 1), size(mtxV, 2)) :: correction
-      real(dp), dimension(size(mtxV, 1), size(mtxV, 2)) :: proj_mtx, proj_stx
-      real(dp), dimension(size(mtxV, 1),size(mtxV, 1)) :: diag_eigenvalues
+      real(dp), dimension(size(matrixV, 1), size(matrixV, 2)) :: correction
       integer :: ii, j
-      integer :: m
 
-      ! leading dimension of array V
-      m = size(mtxV,1)
-
-      ! computed the projected matrices
-      proj_mtx = lapack_matmul('N', 'N', mtxV, eigenvectors)
-      proj_stx = lapack_matmul('N', 'N', stxV, eigenvectors)
-
-      do ii =1, size(mtxV,2)
-         diag_eigenvalues = eye(m, m, eigenvalues(ii))
-         correction(:, ii) = proj_mtx(:, ii) - lapack_matrix_vector('N', diag_eigenvalues, proj_stx(:, ii))
-      end do
-
-      do j=1, size(mtxV, 2)
-         do ii=1,size(correction,1)
-            correction(ii, j) = correction(ii, j) / (eigenvalues(j) * diag_stx(ii)  - diag_mtx(ii))
+      do j=1, size(matrixV, 2)
+         do ii=1,size(matrixV, 1)
+            correction(ii, j) = residues(ii, j) / (eigenvalues(j) * diag_second_matrix(ii)  - diag_matrix(ii))
          end do
       end do
       
@@ -493,9 +499,9 @@ function compute_DPR_free(mtxV, stxV, eigenvalues, eigenvectors, diag_mtx, diag_
 
     interface
          function fun_A_gemv(input_vect) result(output_vect)
-           !> \brief Function to compute the optional mtx on the fly
-           !> \param[in] i column/row to compute from mtx
-           !> \param vec column/row from mtx
+           !> \brief Function to compute the optional matrix on the fly
+           !> \param[in] i column/row to compute from matrix
+           !> \param vec column/row from matrix
            use numeric_kinds, only: dp
            real (dp), dimension(:,:), intent(in) :: input_vect
            real (dp), dimension(size(input_vect,1),size(input_vect,2)) :: output_vect
@@ -517,7 +523,7 @@ function compute_DPR_free(mtxV, stxV, eigenvalues, eigenvectors, diag_mtx, diag_
   end function extract_diagonal_free
 
 
-  function free_matmul(fun, array) result (mtx)
+  function free_matmul(fun, array) result (matrix)
     !> \brief perform a matrix-matrix multiplication by generating a matrix on the fly using `fun`
     !> \param[in] fun function to compute a matrix on the fly
     !> \param[in] array matrix to multiply with fun
@@ -526,13 +532,13 @@ function compute_DPR_free(mtxV, stxV, eigenvalues, eigenvectors, diag_mtx, diag_
     ! input/output
     implicit none
     real(dp), dimension(:, :), intent(in) :: array
-    real(dp), dimension(size(array, 1), size(array, 2)) :: mtx
+    real(dp), dimension(size(array, 1), size(array, 2)) :: matrix
 
     interface
        function fun(i, dim) result(vec)
-         !> \brief Fucntion to compute the matrix `mtx` on the fly
-         !> \param[in] i column/row to compute from `mtx`
-         !> \param vec column/row from mtx
+         !> \brief Fucntion to compute the matrix `matrix` on the fly
+         !> \param[in] i column/row to compute from `matrix`
+         !> \param vec column/row from matrix
          use numeric_kinds, only: dp
          integer, intent(in) :: i
          integer, intent(in) :: dim         
@@ -555,7 +561,7 @@ function compute_DPR_free(mtxV, stxV, eigenvalues, eigenvectors, diag_mtx, diag_
     do i = 1, dim1
        vec = fun(i, dim1)
        do j = 1, dim2
-          mtx(i, j) = dot_product(vec, array(:, j))
+          matrix(i, j) = dot_product(vec, array(:, j))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -563,12 +569,12 @@ function compute_DPR_free(mtxV, stxV, eigenvalues, eigenvectors, diag_mtx, diag_
   end function free_matmul
 
     
-  subroutine check_deallocate_matrix(mtx)
+  subroutine check_deallocate_matrix(matrix)
     !> deallocate a matrix if allocated
-    real(dp), dimension(:, :), allocatable, intent(inout) ::  mtx
+    real(dp), dimension(:, :), allocatable, intent(inout) ::  matrix
     
-    if (allocated(mtx)) then
-       deallocate(mtx)
+    if (allocated(matrix)) then
+       deallocate(matrix)
     end if
     
   end subroutine check_deallocate_matrix  
@@ -595,9 +601,9 @@ module davidson
   interface generalized_eigensolver
   !> \brief Solve a (general) eigenvalue problem using different types of Davidson algorithms.
 
-  !> \param[in] mtx: Matrix to diagonalize
-  !> \param[in, opt] stx: Optional matrix for the general eigenvalue problem:
-  !> \f$ mtx \lambda = V stx \lambda \f$
+  !> \param[in] matrix: Matrix to diagonalize
+  !> \param[in, opt] second_matrix: Optional matrix for the general eigenvalue problem:
+  !> \f$ matrix \lambda = V second_matrix \lambda \f$
      
   !> \param[out] eigenvalues Computed eigenvalues
   !> \param[out] ritz_vectors approximation to the eigenvectors
@@ -606,12 +612,12 @@ module davidson
   !> methods are,
   !>    DPR: Diagonal-Preconditioned-Residue
   !>    GJD: Generalized Jacobi Davidson
-  !> \param[in] max_iters: Maximum number of iterations
+  !> \param[in] max_iterations: Maximum number of iterations
   !> \param[in] tolerance norm-2 error of the eigenvalues
   !> \param[in] method: Method to compute the correction vectors
   !> \param[in, opt] max_dim_sub: maximum dimension of the subspace search   
   !> \param[out] iters: Number of iterations until convergence
-  !> \return eigenvalues and ritz_vectors of the matrix `mtx`
+  !> \return eigenvalues and ritz_vectors of the matrix `matrix`
 
      procedure generalized_eigensolver_dense
      procedure generalized_eigensolver_free
@@ -629,112 +635,97 @@ submodule (davidson_dense) correction_methods_generalized_dense
   
 contains
 
-  module function compute_correction_generalized_dense(mtx, V, eigenvalues, eigenvectors, method, stx) &
+  module function compute_correction_generalized_dense(matrix, eigenvalues, ritz_vectors, residues, method, second_matrix) &
        result(correction)
     !> see interface in davidson module
     real(dp), dimension(:), intent(in) :: eigenvalues
-    real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
-    real(dp), dimension(:, :), intent(in), optional :: stx
+    real(dp), dimension(:, :), intent(in) :: matrix, ritz_vectors, residues
+    real(dp), dimension(:, :), intent(in), optional :: second_matrix
     character(len=*), optional,intent(in) :: method
     logical :: gev 
 
     ! local variables
     character(len=10) :: opt 
-    real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
+    real(dp), dimension(size(matrix, 1), size(residues, 2)) :: correction
 
     !check optional arguments
-    gev = present(stx)
+    gev = present(second_matrix)
     opt="DPR"
     if (present(method)) opt=trim(method)
     
     select case (method)
     case ("DPR")
       if(gev) then
-       correction = compute_DPR_generalized_dense(mtx, V, eigenvalues, eigenvectors, stx)
+       correction = compute_DPR_generalized_dense(matrix, eigenvalues, residues, second_matrix)
       else
-        correction = compute_DPR_generalized_dense(mtx, V, eigenvalues, eigenvectors)
+        correction = compute_DPR_generalized_dense(matrix, eigenvalues, residues)
       end if
     case ("GJD")
       if(gev) then
-       correction = compute_GJD_generalized_dense(mtx, V, eigenvalues, eigenvectors, stx)
+       correction = compute_GJD_generalized_dense(matrix, eigenvalues, ritz_vectors, residues, second_matrix)
       else
-        correction = compute_GJD_generalized_dense(mtx, V, eigenvalues, eigenvectors)
+        correction = compute_GJD_generalized_dense(matrix, eigenvalues, ritz_vectors, residues)
       end if
     end select
     
   end function compute_correction_generalized_dense
 
-  function compute_DPR_generalized_dense(mtx, V, eigenvalues, eigenvectors, stx) result(correction)
+  function compute_DPR_generalized_dense(matrix, eigenvalues, residues, second_matrix) result(correction)
     !> compute Diagonal-Preconditioned-Residue (DPR) correction
     real(dp), dimension(:), intent(in) :: eigenvalues
-    real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
-    real(dp), dimension(:, :), intent(in), optional ::  stx 
-    real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
+    real(dp), dimension(:, :), intent(in) :: matrix, residues
+    real(dp), dimension(:, :), intent(in), optional ::  second_matrix 
+    real(dp), dimension(size(matrix, 1), size(residues, 2)) :: correction
     
     ! local variables
     integer :: ii,j, m
-    real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: diag, arr
-    real(dp), dimension(size(mtx, 1)) :: vec
     logical :: gev
 
     ! shape of matrix
-    m = size(mtx, 1)
-    gev = (present(stx))
+    m = size(matrix, 1)
+    gev = (present(second_matrix))
 
-    do j=1, size(V, 2)
-       if(gev) then
-          diag = eigenvalues(j) * stx
-       else
-          diag = eye(m , m, eigenvalues(j))
-       end if
-       arr = mtx - diag
-       vec = lapack_matrix_vector('N', V, eigenvectors(:, j))
-      
-       correction(:, j) = lapack_matrix_vector('N', arr, vec) 
-
+    do j=1, size(residues, 2)
        do ii=1,size(correction,1)
           if (gev) then
-             correction(ii, j) = correction(ii, j) / (eigenvalues(j) * stx(ii,ii) - mtx(ii, ii))
+             correction(ii, j) = residues(ii, j) / (eigenvalues(j) * second_matrix(ii,ii) - matrix(ii, ii))
            else
-              correction(ii, j) = correction(ii, j) / (eigenvalues(j)  - mtx(ii, ii))
+              correction(ii, j) = residues(ii, j) / (eigenvalues(j)  - matrix(ii, ii))
            endif
         end do
     end do
 
   end function compute_DPR_generalized_dense
 
-  function compute_GJD_generalized_dense(mtx, V, eigenvalues, eigenvectors, stx) result(correction)
+  function compute_GJD_generalized_dense(matrix, eigenvalues, ritz_vectors, residues, second_matrix) result(correction)
     !> Compute the Generalized Jacobi Davidson (GJD) correction
     
     real(dp), dimension(:), intent(in) :: eigenvalues
-    real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
-    real(dp), dimension(:, :), intent(in), optional :: stx
-    real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
+    real(dp), dimension(:, :), intent(in) :: matrix, ritz_vectors, residues
+    real(dp), dimension(:, :), intent(in), optional :: second_matrix
+    real(dp), dimension(size(matrix, 1), size(ritz_vectors, 2)) :: correction
 
     ! local variables
     integer :: k, m
     logical :: gev
-    real(dp), dimension(size(mtx, 1), 1) :: rs
-    real(dp), dimension(size(mtx, 1), size(V, 2)) :: ritz_vectors
-    real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: arr, xs, ys
-    real(dp), dimension(size(mtx, 1), 1) :: brr
+    real(dp), dimension(size(matrix, 1), 1) :: rs
+    real(dp), dimension(size(matrix, 1), size(matrix, 2)) :: arr, xs, ys
+    real(dp), dimension(size(matrix, 1), 1) :: brr
 
     ! Diagonal matrix
-    m = size(mtx, 1)
-    ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors)
+    m = size(matrix, 1)
+    gev = present(second_matrix)
 
-    gev = present(stx)
-
-    do k=1, size(V, 2)
+    do k=1, size(ritz_vectors, 2)
        rs(:, 1) = ritz_vectors(:, k)
        xs = eye(m, m) - lapack_matmul('N', 'T', rs, rs)
        if(gev) then
-        ys = mtx - eigenvalues(k)*stx
+        ys = matrix - eigenvalues(k) * second_matrix
        else
-         ys = substract_from_diagonal(mtx, eigenvalues(k))
+         ys = substract_from_diagonal(matrix, eigenvalues(k))
        end if
        arr = lapack_matmul('N', 'N', xs, lapack_matmul('N', 'N', ys, xs))
-       brr = -rs
+       brr = - reshape(residues(:, k), (/m, 1/))
        
        call lapack_solver(arr, brr)
        correction(:, k) = brr(:, 1)
@@ -742,17 +733,17 @@ contains
     
   end function compute_GJD_generalized_dense
 
-  function substract_from_diagonal(mtx, alpha) result(arr)
+  function substract_from_diagonal(matrix, alpha) result(arr)
     !> susbstract an scalar from the diagonal of a matrix
-    !> \param mtx: square matrix
+    !> \param matrix: square matrix
     !> \param alpha: scalar to substract
-    real(dp), dimension(:, :), intent(in) :: mtx
-    real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: arr
+    real(dp), dimension(:, :), intent(in) :: matrix
+    real(dp), dimension(size(matrix, 1), size(matrix, 2)) :: arr
     real(dp), intent(in) :: alpha
     integer :: i
 
-    arr = mtx
-    do i=1,size(mtx, 1)
+    arr = matrix
+    do i=1,size(matrix, 1)
        arr(i, i) = arr(i, i) - alpha
     end do
     

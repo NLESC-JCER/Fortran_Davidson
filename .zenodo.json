@@ -13,7 +13,6 @@
 	    "orcid": "0000-0002-4136-1860"
 	}
     ],
-    "description": "Davidson eigensolver implemented in Fortran",
     "keywords": [
         "Eigenvalues",
         "Computational Chemistry",

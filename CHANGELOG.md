@@ -1,17 +1,25 @@
+# Unreleased
+
+## Changed
+
+* Improved variables names.
+* Removed unnecessary ritz_vectors calculations.
+* Optimized the DPR for the free version [#34](https://github.com/NLESC-JCER/Fortran_Davidson/issues/34).
+* Removed recomputation of the residues [#34](https://github.com/NLESC-JCER/Fortran_Davidson/issues/34).
 
 # Version 0.1.0
 
-### Changed
+## Changed
 
 * Update the whole projection matrix after adding some correction vector. Replace the block update schema.
 
-### Fixed
+## Fixed
 
 * Fixed [several bugs](https://github.com/NLESC-JCER/Fortran_Davidson/issues/29) in the matrix free implementation.
 
 # Version 0.0.5
 
-### New
+## New
 
  * Select the initial orthonormal basis set based on the lowest diagonal elements of the matrix
 
