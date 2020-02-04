@@ -346,7 +346,7 @@ contains
     ! ! Working arrays
     real(dp), dimension(:), allocatable :: eigenvalues_sub
     real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, guess, lambda, matrix_proj
-    real(dp), dimension(:, :), allocatable :: V, second_matrix_proj, matrixV, second_matrixV, rs
+    real(dp), dimension(:, :), allocatable :: V, second_matrix_proj, matrixV, second_matrixV, residues
     
     ! Iteration subpsace dimension
     initial_dimension = lowest * 2
@@ -404,13 +404,13 @@ contains
        enddo
 
        ! residues
-       rs = lapack_matmul('N', 'N', second_matrixV, eigenvectors_sub)
-       guess = lapack_matmul('N', 'N', rs, lambda)
-       deallocate(rs)
-       rs =  lapack_matmul('N', 'N', matrixV, eigenvectors_sub) - guess
+       residues = lapack_matmul('N', 'N', second_matrixV, eigenvectors_sub)
+       guess = lapack_matmul('N', 'N', residues, lambda)
+       deallocate(residues)
+       residues =  lapack_matmul('N', 'N', matrixV, eigenvectors_sub) - guess
        ! errors
        do j=1,lowest
-          errors(j) = norm(rs(:, j))
+          errors(j) = norm(residues(:, j))
        end do
        
        if (all(errors < tolerance)) then
@@ -425,7 +425,7 @@ contains
           call check_deallocate_matrix(correction)
           allocate(correction(size(ritz_vectors, 1), size(V, 2)))
 
-          correction = compute_DPR_free(matrixV, second_matrixV, eigenvalues_sub, eigenvectors_sub, diag_matrix, diag_second_matrix)
+          correction = compute_DPR_free(matrixV, eigenvalues_sub, residues, diag_matrix, diag_second_matrix)
           
           ! 6. Increase Basis size
           call concatenate(V, correction)
@@ -452,7 +452,7 @@ contains
     
     ! Free memory
     call check_deallocate_matrix(correction)
-    deallocate(eigenvalues_sub, eigenvectors_sub, V, matrix_proj, matrixV, second_matrixV, guess, rs)
+    deallocate(eigenvalues_sub, eigenvectors_sub, V, matrix_proj, matrixV, second_matrixV, guess, residues)
     
     ! free optional matrix
     call check_deallocate_matrix(second_matrix_proj)
@@ -460,44 +460,28 @@ contains
   end subroutine generalized_eigensolver_free
   
 
-function compute_DPR_free(matrixV, second_matrixV, eigenvalues, eigenvectors, diag_matrix, diag_second_matrix) result(correction)
+function compute_DPR_free(matrixV, eigenvalues, residues, diag_matrix, diag_second_matrix) result(correction)
 
       !> compute the correction vector using the DPR method for a matrix free diagonalization
       !> See correction_methods submodule for the implementations
       !> \param[in] matrixV: projection matrix * V
-      !> \param[in] second_matrixV: projection second_matrix * V
       !> \param[in] V: Basis of the iteration subspace
       !> \param[in] eigenvalues: of the reduce problem
-      !> \param[in] eigenvectors: of the reduce problem
+      !> \param[in] residues: error for each eigenvalue/eigenvector pair
       !> \return correction matrix
       
       real(dp), dimension(:), intent(in) :: eigenvalues
-      real(dp), dimension(:, :), intent(in) :: eigenvectors, matrixV, second_matrixV
+      real(dp), dimension(:, :), intent(in) :: matrixV, residues
       real(dp), dimension(:), intent(in) :: diag_matrix, diag_second_matrix
 
       ! local variables
       !real(dp), dimension(size(V, 1),1) :: vector
       real(dp), dimension(size(matrixV, 1), size(matrixV, 2)) :: correction
-      real(dp), dimension(size(matrixV, 1), size(matrixV, 2)) :: proj_matrix, proj_second_matrix
-      real(dp), dimension(size(matrixV, 1),size(matrixV, 1)) :: diag_eigenvalues
       integer :: ii, j
-      integer :: m
-
-      ! leading dimension of array V
-      m = size(matrixV,1)
-
-      ! computed the projected matrices
-      proj_matrix = lapack_matmul('N', 'N', matrixV, eigenvectors)
-      proj_second_matrix = lapack_matmul('N', 'N', second_matrixV, eigenvectors)
-
-      do ii =1, size(matrixV,2)
-         diag_eigenvalues = eye(m, m, eigenvalues(ii))
-         correction(:, ii) = proj_matrix(:, ii) - lapack_matrix_vector('N', diag_eigenvalues, proj_second_matrix(:, ii))
-      end do
 
       do j=1, size(matrixV, 2)
-         do ii=1,size(correction,1)
-            correction(ii, j) = correction(ii, j) / (eigenvalues(j) * diag_second_matrix(ii)  - diag_matrix(ii))
+         do ii=1,size(matrixV, 1)
+            correction(ii, j) = residues(ii, j) / (eigenvalues(j) * diag_second_matrix(ii)  - diag_matrix(ii))
          end do
       end do
       
