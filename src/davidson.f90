@@ -24,7 +24,7 @@ module davidson_dense
   public :: generalized_eigensolver_dense
 
   interface
-     module function compute_correction_generalized_dense(matrix, eigenvalues, ritz_vectors, method, second_matrix) &
+     module function compute_correction_generalized_dense(matrix, eigenvalues, ritz_vectors, residues, method, second_matrix) &
           result(correction)
        !> compute the correction vector using a given `method` for the Davidson algorithm
        !> See correction_methods submodule for the implementations
@@ -33,10 +33,11 @@ module davidson_dense
        !> \param[in] V: Basis of the iteration subspace
        !> \param[in] eigenvalues: of the reduce problem
        !> \param[in] ritz_vectors: guess eigenvectors
+       !> \param[in] residues: matrix of residues
        !> \param[in] method: name of the method to compute the correction
        
        real(dp), dimension(:), intent(in) :: eigenvalues
-       real(dp), dimension(:, :), intent(in) :: matrix, ritz_vectors
+       real(dp), dimension(:, :), intent(in) :: matrix, ritz_vectors, residues
        real(dp), dimension(:, :), intent(in), optional :: second_matrix
        character(len=*), optional, intent(in) :: method
        real(dp), dimension(size(matrix, 1), size(ritz_vectors, 2)) :: correction
@@ -86,12 +87,13 @@ contains
     integer :: n_converged ! Number of converged eigenvalue/eigenvector pairs
     
     ! Basis of subspace of approximants
-    real(dp), dimension(size(matrix, 1)) :: guess, rs
+    real(dp), dimension(size(matrix, 1)) :: guess
     real(dp), dimension(lowest):: errors
 
     ! Working arrays
     real(dp), dimension(:), allocatable :: eigenvalues_sub
-    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, matrix_proj, second_matrix_proj, V, ritz_vectors
+    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, matrix_proj, second_matrix_proj, V
+    real(dp), dimension(:, :), allocatable ::residues, ritz_vectors
 
     ! Diagonal matrix
     real(dp), dimension(size(matrix, 1)) :: d
@@ -153,22 +155,28 @@ contains
         call lapack_generalized_eigensolver(matrix_proj, eigenvalues_sub, eigenvectors_sub)
        end if
 
-       ! 4. Check for convergence
+       ! 4.1 Compute residues
        ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub)
 
-       do j=1,lowest
+       call check_deallocate_matrix(residues)
+       allocate(residues(size(matrix, 1), size(V, 2)))
+       do j=1, size(V, 2)
           if(gev) then
-            guess = eigenvalues_sub(j) * lapack_matrix_vector('N',second_matrix,ritz_vectors(:, j))
+             guess = eigenvalues_sub(j) * lapack_matrix_vector('N',second_matrix,ritz_vectors(:, j))
           else
-            guess = eigenvalues_sub(j) * ritz_vectors(:, j)
+             guess = eigenvalues_sub(j) * ritz_vectors(:, j)
           end if
-          rs = lapack_matrix_vector('N', matrix, ritz_vectors(:, j)) - guess
-          errors(j) = norm(rs)
-          ! Check which eigenvalues has converged
+          residues(:, j) = lapack_matrix_vector('N', matrix, ritz_vectors(:, j)) - guess
+       end do
+
+       ! 4.2 Check for convergence
+       do j = 1,lowest
+          errors(j) = norm(residues(:, j))
           if (errors(j) < tolerance) then
              has_converged(j) = .true.
           end if
        end do
+
        
        ! Count converged pairs of eigenvalues/eigenvectors
        n_converged = n_converged + count(errors < tolerance)
@@ -191,9 +199,10 @@ contains
           allocate(correction(size(matrix, 1), size(V, 2)))
 
           if(gev) then
-            correction = compute_correction_generalized_dense(matrix, eigenvalues_sub, ritz_vectors, method, second_matrix)
+             correction = compute_correction_generalized_dense(matrix, eigenvalues_sub, ritz_vectors, &
+             residues, method, second_matrix)
           else
-            correction = compute_correction_generalized_dense(matrix, eigenvalues_sub, ritz_vectors, method)
+            correction = compute_correction_generalized_dense(matrix, eigenvalues_sub, ritz_vectors, residues, method)
           end if
 
 
@@ -642,18 +651,18 @@ submodule (davidson_dense) correction_methods_generalized_dense
   
 contains
 
-  module function compute_correction_generalized_dense(matrix, eigenvalues, ritz_vectors, method, second_matrix) &
+  module function compute_correction_generalized_dense(matrix, eigenvalues, ritz_vectors, residues, method, second_matrix) &
        result(correction)
     !> see interface in davidson module
     real(dp), dimension(:), intent(in) :: eigenvalues
-    real(dp), dimension(:, :), intent(in) :: matrix, ritz_vectors
+    real(dp), dimension(:, :), intent(in) :: matrix, ritz_vectors, residues
     real(dp), dimension(:, :), intent(in), optional :: second_matrix
     character(len=*), optional,intent(in) :: method
     logical :: gev 
 
     ! local variables
     character(len=10) :: opt 
-    real(dp), dimension(size(matrix, 1), size(ritz_vectors, 2)) :: correction
+    real(dp), dimension(size(matrix, 1), size(residues, 2)) :: correction
 
     !check optional arguments
     gev = present(second_matrix)
@@ -663,64 +672,52 @@ contains
     select case (method)
     case ("DPR")
       if(gev) then
-       correction = compute_DPR_generalized_dense(matrix, eigenvalues, ritz_vectors, second_matrix)
+       correction = compute_DPR_generalized_dense(matrix, eigenvalues, residues, second_matrix)
       else
-        correction = compute_DPR_generalized_dense(matrix, eigenvalues, ritz_vectors)
+        correction = compute_DPR_generalized_dense(matrix, eigenvalues, residues)
       end if
     case ("GJD")
       if(gev) then
-       correction = compute_GJD_generalized_dense(matrix, eigenvalues, ritz_vectors, second_matrix)
+       correction = compute_GJD_generalized_dense(matrix, eigenvalues, ritz_vectors, residues, second_matrix)
       else
-        correction = compute_GJD_generalized_dense(matrix, eigenvalues, ritz_vectors)
+        correction = compute_GJD_generalized_dense(matrix, eigenvalues, ritz_vectors, residues)
       end if
     end select
     
   end function compute_correction_generalized_dense
 
-  function compute_DPR_generalized_dense(matrix, eigenvalues, ritz_vectors, second_matrix) result(correction)
+  function compute_DPR_generalized_dense(matrix, eigenvalues, residues, second_matrix) result(correction)
     !> compute Diagonal-Preconditioned-Residue (DPR) correction
     real(dp), dimension(:), intent(in) :: eigenvalues
-    real(dp), dimension(:, :), intent(in) :: matrix, ritz_vectors
+    real(dp), dimension(:, :), intent(in) :: matrix, residues
     real(dp), dimension(:, :), intent(in), optional ::  second_matrix 
-    real(dp), dimension(size(matrix, 1), size(ritz_vectors, 2)) :: correction
+    real(dp), dimension(size(matrix, 1), size(residues, 2)) :: correction
     
     ! local variables
     integer :: ii,j, m
-    real(dp), dimension(size(matrix, 1), size(matrix, 2)) :: diag, arr
-    real(dp), dimension(size(matrix, 1)) :: vec
     logical :: gev
 
     ! shape of matrix
     m = size(matrix, 1)
     gev = (present(second_matrix))
 
-    do j=1, size(ritz_vectors, 2)
-       if(gev) then
-          diag = eigenvalues(j) * second_matrix
-       else
-          diag = eye(m , m, eigenvalues(j))
-       end if
-       arr = matrix - diag
-       vec = ritz_vectors(:, j)
-      
-       correction(:, j) = lapack_matrix_vector('N', arr, vec) 
-
+    do j=1, size(residues, 2)
        do ii=1,size(correction,1)
           if (gev) then
-             correction(ii, j) = correction(ii, j) / (eigenvalues(j) * second_matrix(ii,ii) - matrix(ii, ii))
+             correction(ii, j) = residues(ii, j) / (eigenvalues(j) * second_matrix(ii,ii) - matrix(ii, ii))
            else
-              correction(ii, j) = correction(ii, j) / (eigenvalues(j)  - matrix(ii, ii))
+              correction(ii, j) = residues(ii, j) / (eigenvalues(j)  - matrix(ii, ii))
            endif
         end do
     end do
 
   end function compute_DPR_generalized_dense
 
-  function compute_GJD_generalized_dense(matrix, eigenvalues, ritz_vectors, second_matrix) result(correction)
+  function compute_GJD_generalized_dense(matrix, eigenvalues, ritz_vectors, residues, second_matrix) result(correction)
     !> Compute the Generalized Jacobi Davidson (GJD) correction
     
     real(dp), dimension(:), intent(in) :: eigenvalues
-    real(dp), dimension(:, :), intent(in) :: matrix, ritz_vectors
+    real(dp), dimension(:, :), intent(in) :: matrix, ritz_vectors, residues
     real(dp), dimension(:, :), intent(in), optional :: second_matrix
     real(dp), dimension(size(matrix, 1), size(ritz_vectors, 2)) :: correction
 
@@ -744,7 +741,7 @@ contains
          ys = substract_from_diagonal(matrix, eigenvalues(k))
        end if
        arr = lapack_matmul('N', 'N', xs, lapack_matmul('N', 'N', ys, xs))
-       brr = -rs
+       brr = - reshape(residues(:, k), (/m, 1/))
        
        call lapack_solver(arr, brr)
        correction(:, k) = brr(:, 1)
