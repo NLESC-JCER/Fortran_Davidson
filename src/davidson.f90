@@ -24,7 +24,7 @@ module davidson_dense
   public :: generalized_eigensolver_dense
 
   interface
-     module function compute_correction_generalized_dense(mtx, V, eigenvalues, eigenvectors, method, stx) &
+     module function compute_correction_generalized_dense(mtx, eigenvalues, ritz_vectors, method, stx) &
           result(correction)
        !> compute the correction vector using a given `method` for the Davidson algorithm
        !> See correction_methods submodule for the implementations
@@ -32,14 +32,14 @@ module davidson_dense
        !> \param[in] stx: Matrix to compute the general eigenvalue problem
        !> \param[in] V: Basis of the iteration subspace
        !> \param[in] eigenvalues: of the reduce problem
-       !> \param[in] eigenvectors: of the reduce problem
+       !> \param[in] ritz_vectors: guess eigenvectors
        !> \param[in] method: name of the method to compute the correction
        
        real(dp), dimension(:), intent(in) :: eigenvalues
-       real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
+       real(dp), dimension(:, :), intent(in) :: mtx, ritz_vectors
        real(dp), dimension(:, :), intent(in), optional :: stx
        character(len=*), optional, intent(in) :: method
-       real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
+       real(dp), dimension(size(mtx, 1), size(ritz_vectors, 2)) :: correction
        
      end function compute_correction_generalized_dense
 
@@ -155,7 +155,7 @@ contains
 
        ! 4. Check for convergence
        ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub)
-       eigenvectors = ritz_vectors(:,:lowest) ! Guess eigenvectors
+       eigenvectors = ritz_vectors(:,:lowest)  ! Guess eigenvectors
        do j=1,lowest
           if(gev) then
             guess = eigenvalues_sub(j) * lapack_matrix_vector('N',stx,ritz_vectors(:, j))
@@ -186,9 +186,9 @@ contains
           allocate(correction(size(mtx, 1), size(V, 2)))
 
           if(gev) then
-            correction = compute_correction_generalized_dense(mtx, V, eigenvalues_sub, eigenvectors_sub, method, stx)
+            correction = compute_correction_generalized_dense(mtx, eigenvalues_sub, ritz_vectors, method, stx)
           else
-            correction = compute_correction_generalized_dense(mtx, V, eigenvalues_sub, eigenvectors_sub, method)
+            correction = compute_correction_generalized_dense(mtx, eigenvalues_sub, ritz_vectors, method)
           end if
 
 
@@ -630,18 +630,18 @@ submodule (davidson_dense) correction_methods_generalized_dense
   
 contains
 
-  module function compute_correction_generalized_dense(mtx, V, eigenvalues, eigenvectors, method, stx) &
+  module function compute_correction_generalized_dense(mtx, eigenvalues, ritz_vectors, method, stx) &
        result(correction)
     !> see interface in davidson module
     real(dp), dimension(:), intent(in) :: eigenvalues
-    real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
+    real(dp), dimension(:, :), intent(in) :: mtx, ritz_vectors
     real(dp), dimension(:, :), intent(in), optional :: stx
     character(len=*), optional,intent(in) :: method
     logical :: gev 
 
     ! local variables
     character(len=10) :: opt 
-    real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
+    real(dp), dimension(size(mtx, 1), size(ritz_vectors, 2)) :: correction
 
     !check optional arguments
     gev = present(stx)
@@ -651,26 +651,26 @@ contains
     select case (method)
     case ("DPR")
       if(gev) then
-       correction = compute_DPR_generalized_dense(mtx, V, eigenvalues, eigenvectors, stx)
+       correction = compute_DPR_generalized_dense(mtx, eigenvalues, ritz_vectors, stx)
       else
-        correction = compute_DPR_generalized_dense(mtx, V, eigenvalues, eigenvectors)
+        correction = compute_DPR_generalized_dense(mtx, eigenvalues, ritz_vectors)
       end if
     case ("GJD")
       if(gev) then
-       correction = compute_GJD_generalized_dense(mtx, V, eigenvalues, eigenvectors, stx)
+       correction = compute_GJD_generalized_dense(mtx, eigenvalues, ritz_vectors, stx)
       else
-        correction = compute_GJD_generalized_dense(mtx, V, eigenvalues, eigenvectors)
+        correction = compute_GJD_generalized_dense(mtx, eigenvalues, ritz_vectors)
       end if
     end select
     
   end function compute_correction_generalized_dense
 
-  function compute_DPR_generalized_dense(mtx, V, eigenvalues, eigenvectors, stx) result(correction)
+  function compute_DPR_generalized_dense(mtx, eigenvalues, ritz_vectors, stx) result(correction)
     !> compute Diagonal-Preconditioned-Residue (DPR) correction
     real(dp), dimension(:), intent(in) :: eigenvalues
-    real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
+    real(dp), dimension(:, :), intent(in) :: mtx, ritz_vectors
     real(dp), dimension(:, :), intent(in), optional ::  stx 
-    real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
+    real(dp), dimension(size(mtx, 1), size(ritz_vectors, 2)) :: correction
     
     ! local variables
     integer :: ii,j, m
@@ -682,14 +682,14 @@ contains
     m = size(mtx, 1)
     gev = (present(stx))
 
-    do j=1, size(V, 2)
+    do j=1, size(ritz_vectors, 2)
        if(gev) then
           diag = eigenvalues(j) * stx
        else
           diag = eye(m , m, eigenvalues(j))
        end if
        arr = mtx - diag
-       vec = lapack_matrix_vector('N', V, eigenvectors(:, j))
+       vec = ritz_vectors(:, j)
       
        correction(:, j) = lapack_matrix_vector('N', arr, vec) 
 
@@ -704,29 +704,26 @@ contains
 
   end function compute_DPR_generalized_dense
 
-  function compute_GJD_generalized_dense(mtx, V, eigenvalues, eigenvectors, stx) result(correction)
+  function compute_GJD_generalized_dense(mtx, eigenvalues, ritz_vectors, stx) result(correction)
     !> Compute the Generalized Jacobi Davidson (GJD) correction
     
     real(dp), dimension(:), intent(in) :: eigenvalues
-    real(dp), dimension(:, :), intent(in) :: mtx, V, eigenvectors
+    real(dp), dimension(:, :), intent(in) :: mtx, ritz_vectors
     real(dp), dimension(:, :), intent(in), optional :: stx
-    real(dp), dimension(size(mtx, 1), size(V, 2)) :: correction
+    real(dp), dimension(size(mtx, 1), size(ritz_vectors, 2)) :: correction
 
     ! local variables
     integer :: k, m
     logical :: gev
     real(dp), dimension(size(mtx, 1), 1) :: rs
-    real(dp), dimension(size(mtx, 1), size(V, 2)) :: ritz_vectors
     real(dp), dimension(size(mtx, 1), size(mtx, 2)) :: arr, xs, ys
     real(dp), dimension(size(mtx, 1), 1) :: brr
 
     ! Diagonal matrix
     m = size(mtx, 1)
-    ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors)
-
     gev = present(stx)
 
-    do k=1, size(V, 2)
+    do k=1, size(ritz_vectors, 2)
        rs(:, 1) = ritz_vectors(:, k)
        xs = eye(m, m) - lapack_matmul('N', 'T', rs, rs)
        if(gev) then
