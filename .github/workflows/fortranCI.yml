@@ -8,7 +8,5 @@ jobs:
     container: nlescjcer/gfortranmkl:latest
     steps:
       - uses: actions/checkout@master
-      - run: |
-          cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Debug -DENABLE_TEST=ON && cmake --build build
-          cd build && ctest -V
-    
+      - run: cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Debug -DENABLE_TEST=ON && cmake --build build
+      - run: cd build && ctest -V
