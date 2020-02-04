@@ -5,7 +5,7 @@ on: [push]
 jobs:
   container:
     runs-on: ubuntu-latest
-    image: nlescjcer/gfortranmkl:latest
+    container: nlescjcer/gfortranmkl:latest
     steps:
       - run: |
           cd $HOME && git clone --branch master --single-branch git://github.com/NLESC-JCER/Fortran_Davidson.git
