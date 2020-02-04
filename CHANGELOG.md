@@ -4,8 +4,8 @@
 
 * Improved variables names.
 * Removed unnecessary ritz_vectors calculations.
-* Optimized the DPR for the free version.
-* Removed recomputation of the residues.
+* Optimized the DPR for the free version [#34](https://github.com/NLESC-JCER/Fortran_Davidson/issues/34).
+* Removed recomputation of the residues [#34](https://github.com/NLESC-JCER/Fortran_Davidson/issues/34).
 
 # Version 0.1.0
 
