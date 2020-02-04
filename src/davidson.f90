@@ -331,14 +331,13 @@ contains
     integer :: dim_matrix, initial_dimension, max_dim, i, j
     
     ! ! Basis of subspace of approximants
-    real(dp), dimension(size(ritz_vectors, 1),1) :: guess, rs
     real(dp), dimension(size(ritz_vectors, 1)  ) :: diag_matrix, diag_second_matrix, copy_d
     real(dp), dimension(lowest):: errors
     
     ! ! Working arrays
     real(dp), dimension(:), allocatable :: eigenvalues_sub
-    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, matrix_proj
-    real(dp), dimension(:, :), allocatable :: second_matrix_proj, V, matrixV, second_matrixV
+    real(dp), dimension(:, :), allocatable :: correction, eigenvectors_sub, guess, lambda, matrix_proj
+    real(dp), dimension(:, :), allocatable :: V, second_matrix_proj, matrixV, second_matrixV, rs
     
     ! Iteration subpsace dimension
     initial_dimension = lowest * 2
@@ -388,10 +387,21 @@ contains
        ! 4. Check for convergence
        ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :lowest))
 
+       ! 4.1 Residue calculation
+       !! Matrix with the the eigenvalues in the diagonal
+       lambda = eye( size(V, 2), size(V, 2))
+       do j= 1, size(V, 2)
+          lambda(j, j)= eigenvalues_sub(j)
+       enddo
+
+       ! residues
+       rs = lapack_matmul('N', 'N', second_matrixV, eigenvectors_sub)
+       guess = lapack_matmul('N', 'N', rs, lambda)
+       deallocate(rs)
+       rs =  lapack_matmul('N', 'N', matrixV, eigenvectors_sub) - guess
+       ! errors
        do j=1,lowest
-          guess = eigenvalues_sub(j) * fun_second_matrix_gemv(reshape(ritz_vectors(:, j),(/dim_matrix,1/) ) )
-          rs = fun_matrix_gemv(reshape(ritz_vectors(:, j), (/dim_matrix,1/))) - guess
-          errors(j) = norm(reshape(rs,(/dim_matrix/)))
+          errors(j) = norm(rs(:, j))
        end do
        
        if (all(errors < tolerance)) then
@@ -405,7 +415,7 @@ contains
           ! append correction to the current basis
           call check_deallocate_matrix(correction)
           allocate(correction(size(ritz_vectors, 1), size(V, 2)))
-          
+
           correction = compute_DPR_free(matrixV, second_matrixV, eigenvalues_sub, eigenvectors_sub, diag_matrix, diag_second_matrix)
           
           ! 6. Increase Basis size
@@ -433,7 +443,7 @@ contains
     
     ! Free memory
     call check_deallocate_matrix(correction)
-    deallocate(eigenvalues_sub, eigenvectors_sub, V, matrix_proj, matrixV, second_matrixV)
+    deallocate(eigenvalues_sub, eigenvectors_sub, V, matrix_proj, matrixV, second_matrixV, guess, rs)
     
     ! free optional matrix
     call check_deallocate_matrix(second_matrix_proj)
