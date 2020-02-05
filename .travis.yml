@@ -19,7 +19,7 @@ install:
 script:
   - sudo rm /usr/bin/gfortran
   - sudo ln -s /usr/bin/gfortran-7 /usr/bin/gfortran
-  - cmake -H. -Bbuild -DENABLE_TEST=ON  -DCMAKE_BUILD_TYPE=Release
+  - cmake -H. -Bbuild -DENABLE_TEST=ON  -DCMAKE_BUILD_TYPE=Debug
   - cmake --build build
   - cd build && ctest -V
   
