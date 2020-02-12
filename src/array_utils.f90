@@ -9,7 +9,7 @@ module array_utils
   private
   !> \public
   public :: concatenate, diagonal,eye, generate_diagonal_dominant, norm, &
-       generate_preconditioner
+       generate_preconditioner, modified_gram_schmidt
 
 contains
 
@@ -159,6 +159,41 @@ contains
     
   end function generate_preconditioner
 
+
+  subroutine modified_gram_schmidt(mat, nstart)
+   !> \brief use modifed gram-schmidt orthogonalization on mat
+   !> \brief nstart is the index of the first vector to orthogonalize
+   
+   ! input
+   real(dp), dimension(:,:), intent(inout) :: mat
+   integer, optional, intent(in) :: nstart
+
+   integer :: i, j
+   integer :: nrows, ncols
+   integer :: idx_start
+   real(dp), dimension(:), allocatable :: tmp_array
+
+   idx_start = 0
+   if (present(nstart)) idx_start = nstart
+
+   nrows = size(mat,1)
+   ncols = size(mat,2)
+   allocate(tmp_array(nrows))
+
+   do i=idx_start, ncols
+
+      do j=1, i-1
+         tmp_array = lapack_matrix_vector('T', mat(:,:j-1),mat(:,j))
+         mat(:,i) = mat(:,i) - lapack_matrix_vector('N',mat(:,:j-1), tmp_array)
+      end do
+
+      mat(:,j) = mat(:,j) / norm(mat(:,j))
+
+   end do
+
+  end subroutine modified_gram_schmidt
+
+
   function search_key(keys, i) result(k)
     !> \brief Search for a given index `i` in a vector `keys`
     !> \param keys Vector of index
@@ -177,5 +212,7 @@ contains
     end do
 
   end function search_key
+
+
     
 end module array_utils

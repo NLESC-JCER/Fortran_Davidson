@@ -14,7 +14,7 @@ module davidson_dense
   use numeric_kinds, only: dp
   use lapack_wrapper, only: lapack_generalized_eigensolver, lapack_matmul, lapack_matrix_vector, &
        lapack_qr, lapack_solver, lapack_sort
-  use array_utils, only: concatenate, diagonal, eye, generate_preconditioner, norm
+  use array_utils, only: concatenate, diagonal, eye, generate_preconditioner, norm, modified_gram_schmidt
 
   implicit none
   
@@ -210,22 +210,28 @@ contains
           call concatenate(V, correction)
        
           ! 7. Orthogonalize basis
-          call lapack_qr(V)
+          ! call lapack_qr(V)
+          call modified_gram_schmidt(V)
+
+          ! update the projected matrices
+          call update_projection_dense(matrix, V, matrix_proj)
+          if(gev) then
+            call update_projection_dense(second_matrix, V, second_matrix_proj)
+          end if
 
        else
 
           ! 6. Otherwise reduce the basis of the subspace to the current correction
           V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :initial_dimension))
 
+          ! we refresh the projected matrices
+          matrix_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', matrix, V))
+          if(gev) then
+             second_matrix_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', second_matrix, V))
+          end if
+
        end if
 
-       ! we refresh the projected matrices
-       matrix_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', matrix, V))
-
-       if(gev) then
-          second_matrix_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', second_matrix, V))
-       end if
-      
     end do outer_loop
 
     !  8. Check convergence
@@ -244,6 +250,37 @@ contains
     endif
     
   end subroutine generalized_eigensolver_dense
+
+  subroutine update_projection_dense(A, V, A_proj)
+   !> update the projected matrices
+   !> \param A: full matrix
+   !> \param V: projector
+   !> \param A_proj: projected matrix
+
+   implicit none
+   real(dp), dimension(:, :), intent(in) :: A
+   real(dp), dimension(:, :), intent(in) :: V
+   real(dp), dimension(:, :), intent(inout), allocatable :: A_proj
+   real(dp), dimension(:, :), allocatable :: tmp_array
+
+   ! local variables
+   integer :: nvec, old_dim
+
+   ! dimension of the matrices
+   nvec = size(V,2)
+   old_dim = size(A_proj,1)    
+
+   ! move to temporal array
+   allocate(tmp_array(nvec, nvec))
+   tmp_array(:old_dim, :old_dim) = A_proj
+   tmp_array(:,old_dim+1:) = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', A, V(:, old_dim+1:)))
+   tmp_array( old_dim+1:,:old_dim ) = transpose(tmp_array(:old_dim, old_dim+1:))
+
+   ! Move to new expanded matrix
+   deallocate(A_proj)
+   call move_alloc(tmp_array, A_proj)
+
+ end subroutine update_projection_dense
 
   subroutine check_deallocate_matrix(matrix)
     !> deallocate a matrix if allocated
