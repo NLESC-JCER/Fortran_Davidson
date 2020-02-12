@@ -80,7 +80,7 @@ contains
     call move_alloc(tmp_array, arr)
 
     arr(:, dim_cols + 1:) = brr
-
+    
   end subroutine concatenate
     
   function generate_diagonal_dominant(m, sparsity, diag_val) result(arr)

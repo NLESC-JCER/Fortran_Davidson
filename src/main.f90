@@ -48,12 +48,10 @@ program main
 
   mtx = generate_diagonal_dominant(dim, 5d-2)
   stx = generate_diagonal_dominant(dim, 1d-2, 1d0)
-
-  print *, mtx(:3,:3)
   
-  call generalized_eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 3, "GJD", 100, 1d-5, iter_i, 10, stx)
+  call generalized_eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 5, "GJD", 100, 1d-5, iter_i, 50, stx)
   print *, "GJD algorithm converged in: ", iter_i, " iterations!"
-  call generalized_eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 3, "DPR", 100, 1d-5, iter_i, 10, stx)
+  call generalized_eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 5, "DPR", 100, 1d-5, iter_i, 50, stx)
   print *, "DPR algorithm converged in: ", iter_i, " iterations!"
   
   print *, "Test 1"

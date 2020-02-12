@@ -83,7 +83,7 @@ contains
     integer, intent(out) :: iters
     
     !local variables
-    integer :: i, j, initial_dimension, max_dim, current_dimension
+    integer :: i, j, initial_dimension, max_dim, current_dimension, size_update
     integer :: n_converged ! Number of converged eigenvalue/eigenvector pairs
     
     ! Basis of subspace of approximants
@@ -106,6 +106,8 @@ contains
 
     ! Iteration subpsace dimension
     initial_dimension = lowest * 2
+    size_update = lowest * 2
+    
 
     ! Initial number of converged eigenvalue/eigenvector pairs
     n_converged = 0
@@ -138,6 +140,7 @@ contains
     outer_loop: do i=1, max_iterations
 
        current_dimension = size(V,2)
+       print *, 'iteration', i, 'size', current_dimension
 
        ! 3. compute the eigenvalues and their corresponding ritz_vectors
        ! for the projected matrix using lapack
@@ -158,11 +161,12 @@ contains
        end if
 
        ! 4.1 Compute residues
-       ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub)
+       ritz_vectors = lapack_matmul('N', 'N', V, eigenvectors_sub(:,:size_update))
 
        call check_deallocate_matrix(residues)
-       allocate(residues(size(matrix, 1), size(V, 2)))
-       do j=1, size(V, 2)
+       allocate(residues(size(matrix, 1), size_update))
+
+       do j=1, size_update
           if(gev) then
              guess = eigenvalues_sub(j) * lapack_matrix_vector('N',second_matrix,ritz_vectors(:, j))
           else
@@ -193,11 +197,11 @@ contains
        end if
        
        ! 5. Add the correction vectors to the current basis
-       if (size(V, 2) <= max_dim) then
+       if (current_dimension + size_update <= max_dim) then
 
           ! append correction to the current basis
           call check_deallocate_matrix(correction)
-          allocate(correction(size(matrix, 1), size(V, 2)))
+          allocate(correction(size(matrix, 1), size_update))
 
           if(gev) then
              correction = compute_correction_generalized_dense(matrix, eigenvalues_sub, ritz_vectors, &
