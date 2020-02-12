@@ -83,7 +83,7 @@ contains
     integer, intent(out) :: iters
     
     !local variables
-    integer :: i, j, initial_dimension, max_dim
+    integer :: i, j, initial_dimension, max_dim, current_dimension
     integer :: n_converged ! Number of converged eigenvalue/eigenvector pairs
     
     ! Basis of subspace of approximants
@@ -137,6 +137,8 @@ contains
     ! ! Outer loop block Davidson schema
     outer_loop: do i=1, max_iterations
 
+       current_dimension = size(V,2)
+
        ! 3. compute the eigenvalues and their corresponding ritz_vectors
        ! for the projected matrix using lapack
        call check_deallocate_matrix(eigenvectors_sub)
@@ -177,7 +179,6 @@ contains
           end if
        end do
 
-       
        ! Count converged pairs of eigenvalues/eigenvectors
        n_converged = n_converged + count(errors < tolerance)
 
@@ -205,14 +206,13 @@ contains
             correction = compute_correction_generalized_dense(matrix, eigenvalues_sub, ritz_vectors, residues, method)
           end if
 
-
           ! 6. Increase Basis size
           call concatenate(V, correction)
-       
+
           ! 7. Orthogonalize basis
           ! call lapack_qr(V)
-          call modified_gram_schmidt(V)
-
+          call modified_gram_schmidt(V, current_dimension+1)
+          
           ! update the projected matrices
           call update_projection_dense(matrix, V, matrix_proj)
           if(gev) then
@@ -229,7 +229,7 @@ contains
           if(gev) then
              second_matrix_proj = lapack_matmul('T', 'N', V, lapack_matmul('N', 'N', second_matrix, V))
           end if
-
+          
        end if
 
     end do outer_loop

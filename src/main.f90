@@ -46,8 +46,8 @@ program main
   real(dp), dimension(dim) :: xs
   integer :: iter_i, j
 
-  mtx = generate_diagonal_dominant(dim, 1d-3)
-  stx = generate_diagonal_dominant(dim, 1d-3, 1d0)
+  mtx = generate_diagonal_dominant(dim, 1d-2)
+  stx = generate_diagonal_dominant(dim, 1d-2, 1d0)
 
   call generalized_eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 3, "GJD", 100, 1d-5, iter_i, 10, stx)
   print *, "GJD algorithm converged in: ", iter_i, " iterations!"

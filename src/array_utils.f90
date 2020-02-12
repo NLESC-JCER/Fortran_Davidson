@@ -172,24 +172,26 @@ contains
    integer :: nrows, ncols
    integer :: idx_start
    real(dp), dimension(:), allocatable :: tmp_array
+   real (dp) :: norm_val
 
-   idx_start = 0
+   idx_start = 1
    if (present(nstart)) idx_start = nstart
 
    nrows = size(mat,1)
    ncols = size(mat,2)
+
    allocate(tmp_array(nrows))
 
    do i=idx_start, ncols
 
-      do j=1, i-1
-         tmp_array = lapack_matrix_vector('T', mat(:,:j-1),mat(:,j))
-         mat(:,i) = mat(:,i) - lapack_matrix_vector('N',mat(:,:j-1), tmp_array)
-      end do
-
-      mat(:,j) = mat(:,j) / norm(mat(:,j))
+      tmp_array = 0.0_dp
+      tmp_array = lapack_matrix_vector('T', mat(:,:i-1),mat(:,i))
+      mat(:,i) = mat(:,i) - lapack_matrix_vector('N',mat(:,:i-1), tmp_array)
+      mat(:,i) = mat(:,i) / norm(mat(:,i))
 
    end do
+   
+   deallocate(tmp_array)
 
   end subroutine modified_gram_schmidt
 
