@@ -37,38 +37,43 @@ program main
 
   implicit none
 
+  integer, parameter :: nev = 10
   integer, parameter :: dim = 100
-  real(dp), dimension(3) :: eigenvalues_DPR, eigenvalues_GJD
-  real(dp), dimension(dim, 3) :: eigenvectors_DPR, eigenvectors_GJD
+  real(dp), dimension(nev) :: eigenvalues_DPR, eigenvalues_GJD
+  real(dp), dimension(dim, nev) :: eigenvectors_DPR, eigenvectors_GJD
   real(dp), dimension(dim, dim) :: mtx
   real(dp), dimension(dim, dim) :: stx
   real(dp) :: test_norm_eigenvalues
   real(dp), dimension(dim) :: xs
   integer :: iter_i, j
 
-  mtx = generate_diagonal_dominant(dim, 5d-2)
+  
+
+  
+
+  mtx = generate_diagonal_dominant(dim, 5d-1)
   stx = generate_diagonal_dominant(dim, 1d-2, 1d0)
   
-  call generalized_eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, 5, "GJD", 100, 1d-5, iter_i, 50, stx)
-  print *, "GJD algorithm converged in: ", iter_i, " iterations!"
-  call generalized_eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, 5, "DPR", 100, 1d-5, iter_i, 50, stx)
+  ! call generalized_eigensolver(mtx, eigenvalues_GJD, eigenvectors_GJD, nev, "GJD", 100, 1d-5, iter_i, 50, stx)
+  ! print *, "GJD algorithm converged in: ", iter_i, " iterations!"
+  call generalized_eigensolver(mtx, eigenvalues_DPR, eigenvectors_DPR, nev, "DPR", 60, 1d-5, iter_i, 50, stx)
   print *, "DPR algorithm converged in: ", iter_i, " iterations!"
   
-  print *, "Test 1"
-  test_norm_eigenvalues = norm(eigenvalues_GJD - eigenvalues_DPR)
-  print *, "Check that eigenvalues norm computed by different methods are the same: ", test_norm_eigenvalues < 1e-6
+  ! print *, "Test 1"
+  ! test_norm_eigenvalues = norm(eigenvalues_GJD - eigenvalues_DPR)
+  ! print *, "Check that eigenvalues norm computed by different methods are the same: ", test_norm_eigenvalues < 1e-6
   
   print *, "Test 2"
   print *, "Check that eigenvalue equation:  H V = l S V  holds!"
   print *, "DPR method:"
-  do j=1,3
+  do j=1,nev
      xs = matmul(mtx, eigenvectors_DPR(:, j)) - (eigenvalues_DPR(j) * matmul(stx, eigenvectors_DPR(:, j)))
      print *, "eigenvalue ", j, ": ", eigenvalues_DPR(j), "||Error||: ", norm(xs)
   end do
-  print *, "GJD method:"
-  do j=1,3
-     xs = matmul(mtx, eigenvectors_GJD(:, j)) - (eigenvalues_GJD(j) * matmul( stx, eigenvectors_GJD(:, j)))
-     print *, "eigenvalue ", j, ": ",eigenvalues_GJD(j), "||Error||: ", norm(xs)
-  end do  
+  ! print *, "GJD method:"
+  ! do j=1,nev
+  !    xs = matmul(mtx, eigenvectors_GJD(:, j)) - (eigenvalues_GJD(j) * matmul( stx, eigenvectors_GJD(:, j)))
+  !    print *, "eigenvalue ", j, ": ",eigenvalues_GJD(j), "||Error||: ", norm(xs)
+  ! end do  
   
 end program main

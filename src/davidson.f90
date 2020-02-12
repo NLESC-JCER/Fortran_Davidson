@@ -225,6 +225,7 @@ contains
 
        else
 
+          print *, 'Restart'
           ! 6. Otherwise reduce the basis of the subspace to the current correction
           V = lapack_matmul('N', 'N', V, eigenvectors_sub(:, :initial_dimension))
 
